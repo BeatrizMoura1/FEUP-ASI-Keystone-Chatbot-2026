@@ -102,6 +102,32 @@ Open http://localhost:8000.
 To reset the database (delete all chats, ratings and uploads, and reload the documents from `.docs/`), run
 `python -m db.reset`.
 
+## Deploy (Render + Neon)
+
+The app runs as a free Render web service and keeps its data in a free Neon PostgreSQL database. Render
+has no shell on the free plan, so the database is created and seeded from your own computer.
+
+1. **Neon:** create a project (Postgres 17, region AWS Europe Central 1 / Frankfurt) and copy the **pooled**
+   connection string.
+2. **Seed Neon** from this folder, with the passwords testers will use:
+
+   ```bash
+   DATABASE_URL='<Neon connection string>' \
+   EMPLOYEE_PASSWORD='...' NEWHIRE_PASSWORD='...' ADMIN_PASSWORD='...' \
+   python -m db.reset
+   ```
+
+   Run the same command again to reset the live data (for example after class testing).
+3. **Render:** New → Web Service → this repository, branch `main`, region Frankfurt, runtime Python, instance
+   type Free.
+   - Build command: `pip install -r requirements.txt`
+   - Start command: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
+   - Environment variables: `DATABASE_URL`, `GEMINI_API_KEY`, `GEMINI_MODEL`
+   - The Python version comes from `.python-version`.
+
+Every push to `main` redeploys. A free service sleeps after 15 minutes without traffic and takes about a
+minute to wake up, so open the site a few minutes before a demo.
+
 ## Sample documents
 
 | Document | Project | Visible to |
