@@ -11,7 +11,8 @@ class Settings(BaseSettings):
     Settings are organised into the following groups:
 
     1. **LLM** - provider choice, Gemini key/model, Ollama URL/model, retry behaviour, chat history length.
-    2. **Storage** - SQLite database path and the folder of seed documents.
+    2. **Storage** - SQLite database path, PostgreSQL connection strings and the folder of seed documents.
+    3. **Test accounts** - passwords of the employee, newhire and admin accounts created by `db/reset.py`.
     """
 
     llm_provider: str = Field(default="gemini", alias="LLM_PROVIDER")
@@ -29,6 +30,20 @@ class Settings(BaseSettings):
 
     database_path: str = Field(default="knowledge_finder.db", alias="DATABASE_PATH")
     docs_dir: str = Field(default=".docs", alias="DOCS_DIR")
+    database_url: str = Field(
+        default="postgresql://localhost/keystone",
+        alias="DATABASE_URL",
+        description="PostgreSQL connection string (Neon in production, local PostgreSQL in development).",
+    )
+    test_database_url: str = Field(
+        default="postgresql://localhost/keystone_test",
+        alias="TEST_DATABASE_URL",
+        description="Local PostgreSQL database the tests use; its data is wiped on every test.",
+    )
+
+    employee_password: str = Field(default="", alias="EMPLOYEE_PASSWORD")
+    newhire_password: str = Field(default="", alias="NEWHIRE_PASSWORD")
+    admin_password: str = Field(default="", alias="ADMIN_PASSWORD")
 
     @field_validator("llm_provider", mode="before")
     @classmethod

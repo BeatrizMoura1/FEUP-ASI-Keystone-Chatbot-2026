@@ -118,6 +118,9 @@ Rules:
 - `ratings` keeps a copy of the question and answer, so a rating stays readable for the admin after its chat is
   deleted (`message_id` becomes NULL).
 - All timestamps are `TIMESTAMPTZ`.
+- Deleting a user deletes their project links, sessions, chats and ratings. The app has no screen that deletes
+  users; this only keeps the keys valid.
+- Two indexes support the most frequent reads: a user's chats by last update, and a chat's messages in order.
 
 ---
 
