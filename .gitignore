@@ -1,0 +1,18 @@
+.env
+.venv/
+__pycache__/
+*.db
+data/
+cache/
+logs/
+*.parquet
+*.csv
+*.json
+.pytest_cache/
+.DS_Store
+Assignment #1 - Product Specification Report.pdf
+Assignment #2 - MVP.pdf
+Access to FEUP Disk Servers.pdf
+Keystone Product Specification.pdf
+Keystone 2-minute pitch.pdf
+feup_check/
