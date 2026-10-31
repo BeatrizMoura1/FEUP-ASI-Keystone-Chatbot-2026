@@ -123,7 +123,7 @@
       const ratings = await response.json();
       const numHelpful = ratings.filter((rating) => rating.is_positive).length;
       ratingSummary.textContent = ratings.length
-        ? `${ratings.length} ratings · ${numHelpful} helpful · ${ratings.length - numHelpful} not helpful`
+        ? `${ratings.length} ${ratings.length === 1 ? "rating" : "ratings"} · ${numHelpful} helpful · ${ratings.length - numHelpful} not helpful`
         : "";
       ratingRows.innerHTML = "";
       if (!ratings.length) {
