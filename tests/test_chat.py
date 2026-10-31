@@ -21,10 +21,22 @@ def test_parse_json_wrapped_in_markdown_fence():
     assert parse_llm_reply(raw_reply, ALLOWED_NAMES)["answer"] == "Before 10:00."
 
 
-def test_parse_malformed_json_falls_back_to_raw_text():
+def test_parse_malformed_json_becomes_no_answer():
     parsed_reply = parse_llm_reply("The answer is 25 days {broken", ALLOWED_NAMES)
 
-    assert parsed_reply == {"answer": "The answer is 25 days {broken", "sources": []}
+    assert parsed_reply == {"answer": NO_ANSWER_TEXT, "sources": []}
+
+
+def test_parse_answer_without_permitted_source_becomes_no_answer():
+    raw_reply = '{"answer": "You get 25 days.", "sources": ["Project B Offshore Wind Tender Bid Strategy"]}'
+
+    assert parse_llm_reply(raw_reply, ALLOWED_NAMES) == {"answer": NO_ANSWER_TEXT, "sources": []}
+
+
+def test_parse_answer_with_empty_sources_becomes_no_answer():
+    raw_reply = '{"answer": "You get 25 days.", "sources": []}'
+
+    assert parse_llm_reply(raw_reply, ALLOWED_NAMES) == {"answer": NO_ANSWER_TEXT, "sources": []}
 
 
 def test_parse_drops_sources_the_user_cannot_see():

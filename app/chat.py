@@ -53,9 +53,11 @@ def build_user_prompt(documents: list[dict], question: str, conversation_history
 
 
 def parse_llm_reply(raw_reply: str, allowed_document_names: set[str]) -> dict:
-    """Parse the model's JSON reply safely, falling back to plain text if it is malformed.
+    """Parse the model's JSON reply safely; any reply without a permitted source becomes "No answer found.".
 
-    Sources are kept only if they name a document the user is allowed to see.
+    Sources are kept only if they name a document the user is allowed to see. A malformed reply, or an answer
+    that cites none of those documents, cannot be traced to a document, so it is replaced by NO_ANSWER_TEXT
+    instead of being shown.
 
     Parameters
     ----------
@@ -77,8 +79,8 @@ def parse_llm_reply(raw_reply: str, allowed_document_names: set[str]) -> dict:
         except json.JSONDecodeError:
             continue
     if not isinstance(parsed_reply, dict) or "answer" not in parsed_reply:
-        logger.warning("LLM reply was not valid JSON, showing raw text instead.")
-        return {"answer": raw_reply.strip() or NO_ANSWER_TEXT, "sources": []}
+        logger.warning("LLM reply was not valid JSON, answering '%s' instead.", NO_ANSWER_TEXT)
+        return {"answer": NO_ANSWER_TEXT, "sources": []}
 
     answer_text = str(parsed_reply.get("answer", "")).strip() or NO_ANSWER_TEXT
     raw_sources = parsed_reply.get("sources") or []
@@ -86,6 +88,9 @@ def parse_llm_reply(raw_reply: str, allowed_document_names: set[str]) -> dict:
         raw_sources = [raw_sources]
     cited_sources = [str(source) for source in raw_sources if str(source) in allowed_document_names]
     if answer_text.rstrip(".").lower() == NO_ANSWER_TEXT.rstrip(".").lower():
+        return {"answer": NO_ANSWER_TEXT, "sources": []}
+    if not cited_sources:
+        logger.warning("LLM answer cited no permitted document, answering '%s' instead.", NO_ANSWER_TEXT)
         return {"answer": NO_ANSWER_TEXT, "sources": []}
     return {"answer": answer_text, "sources": list(dict.fromkeys(cited_sources))}
 

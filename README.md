@@ -13,8 +13,8 @@ replies "No answer found."
    (`documents JOIN user_projects`, deleted documents excluded). Admins see all documents.
 3. The full text of those documents and the question go into one prompt (no embeddings or vector database).
    The model must reply with JSON: `{"answer": "...", "sources": ["doc name", ...]}`.
-4. The reply is parsed safely. Malformed JSON falls back to the raw text, and any cited source the user can't
-   see is dropped.
+4. The reply is parsed safely. Any cited source the user can't see is dropped, and a reply that is malformed or
+   cites no permitted document becomes "No answer found.", so every answer shown has at least one source.
 
 ## Chat history
 
@@ -35,10 +35,9 @@ are still there the next time you log in.
   server checks them against what you can see *now*:
   - an answer that cites a document you can no longer see, or that was deleted, is replaced on the server by
     "This answer is no longer available…", so its text never reaches the browser or the next prompt;
-  - an answer with no citations (other than "No answer found.") is hidden if *any* document from its prompt is
-    no longer visible, because it could contain text from any of them;
+  - an answer is never saved without citations (it becomes "No answer found." first), so this check always
+    has the cited documents to go on;
   - if your access comes back, the answer reappears.
-  This relies on the model citing the documents it used, which the system prompt requires.
 
 ## Project structure
 

@@ -145,6 +145,8 @@ def test_follow_up_question_gets_the_earlier_messages(client, fake_llm):
 
 def test_history_is_limited_to_the_configured_number_of_messages(client, fake_llm, monkeypatch):
     monkeypatch.setattr(settings, "chat_history_messages", 2)
+    for answer_number in (1, 2, 3):
+        fake_llm.reply_with(f"Cited answer {answer_number}", ["Site Health and Safety Rules"])
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "Question one"}).json()["conversation_id"]
     for question in ["Question two", "Question three"]:
@@ -154,7 +156,7 @@ def test_history_is_limited_to_the_configured_number_of_messages(client, fake_ll
 
     assert "Question one" not in last_prompt
     assert "User: Question two" in last_prompt
-    assert "Assistant: Default answer 2" in last_prompt
+    assert "Assistant: Cited answer 2" in last_prompt
 
 
 def test_history_can_be_switched_off(client, fake_llm, monkeypatch):
@@ -207,19 +209,21 @@ def test_answer_is_hidden_after_its_source_document_is_deleted(client, fake_llm)
     assert hidden_message["is_hidden"] is True
 
 
-def test_uncited_answer_is_hidden_when_any_document_from_its_prompt_is_revoked(client, fake_llm):
+def test_uncited_reply_is_saved_as_no_answer_and_never_shown(client, fake_llm):
     login_as(client, "employee", "employee123")
     fake_llm.queued_replies.append("Raw text that is not JSON and cites nothing (PROJECT-A-ONLY-PHRASE)")
-    fake_llm.reply_with(NO_ANSWER_TEXT, [])
-    conversation_id = client.post("/api/ask", json={"question": "Uncited"}).json()["conversation_id"]
-    client.post("/api/ask", json={"question": "Unknown topic", "conversation_id": conversation_id})
+    fake_llm.reply_with("Valid JSON that cites nothing (PROJECT-A-ONLY-PHRASE)", [])
+    first_answer = client.post("/api/ask", json={"question": "Uncited"}).json()
+    second_answer = client.post(
+        "/api/ask", json={"question": "Uncited again", "conversation_id": first_answer["conversation_id"]}
+    ).json()
 
     set_employee_project_a_access(False)
-    saved_messages = client.get(f"/api/conversations/{conversation_id}").json()["messages"]
+    conversation_response = client.get(f"/api/conversations/{first_answer['conversation_id']}")
 
-    assert saved_messages[1]["is_hidden"] is True
-    assert saved_messages[3]["is_hidden"] is False
-    assert saved_messages[3]["content"] == NO_ANSWER_TEXT
+    assert first_answer["answer"] == second_answer["answer"] == NO_ANSWER_TEXT
+    assert "PROJECT-A-ONLY-PHRASE" not in conversation_response.text
+    assert [message["content"] for message in conversation_response.json()["messages"][1::2]] == [NO_ANSWER_TEXT] * 2
 
 
 @pytest.mark.parametrize(

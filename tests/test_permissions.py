@@ -82,3 +82,32 @@ def test_employee_cannot_use_admin_api(client):
 
 def test_ask_requires_login(client):
     assert client.post("/api/ask", json={"question": "hi"}).status_code == 401
+
+
+PROJECT_A_DOCUMENT_NAMES = [
+    "Project A Linha Verde Metro Extension Execution Plan",
+    "Project A Design Review Minutes 2026-09-24",
+]
+PROJECT_A_ONLY_SNIPPETS = ["Alameda Norte", "Quinta das Flores", *PROJECT_A_DOCUMENT_NAMES]
+
+
+def test_newhire_never_sees_project_a_or_b_content(client, echo_llm):
+    login_as(client, "newhire", "newhire123")
+
+    response = client.post("/api/ask", json={"question": "What settlement triggers a red alert on Linha Verde?"})
+
+    assert response.status_code == 200
+    for restricted_snippet in [*PROJECT_A_ONLY_SNIPPETS, *BETA_ONLY_SNIPPETS]:
+        assert restricted_snippet not in echo_llm[0]
+        assert restricted_snippet not in response.text
+    assert "Employee Handbook Leave and Hybrid Work" in echo_llm[0]
+
+
+def test_newhire_cannot_open_project_a_document(client):
+    login_as(client, "newhire", "newhire123")
+    with get_connection() as connection:
+        project_a_document_id = connection.execute(
+            "SELECT id FROM documents WHERE name = %s", (PROJECT_A_DOCUMENT_NAMES[0],)
+        ).fetchone()["id"]
+
+    assert client.get(f"/api/documents/{project_a_document_id}").status_code == 404
