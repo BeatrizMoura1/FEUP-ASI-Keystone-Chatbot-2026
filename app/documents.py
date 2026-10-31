@@ -71,7 +71,7 @@ def detect_project(document_text: str) -> str:
     Returns
     -------
     str
-        One of PROJECTS.
+        One of the PROJECTS codes.
     """
     tag_match = PROJECT_TAG_PATTERN.search(document_text)
     detected_project = tag_match.group(1).upper() if tag_match else "GENERAL"

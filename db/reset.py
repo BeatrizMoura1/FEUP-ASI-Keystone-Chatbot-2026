@@ -3,7 +3,7 @@ from pathlib import Path
 
 import psycopg
 
-from app.config import settings
+from app.config import PROJECTS, settings
 from app.db import hash_password
 from app.documents import SUPPORTED_EXTENSIONS, detect_project, document_name_from_filename, extract_text
 
@@ -22,12 +22,6 @@ TABLES = [
     "user_projects",
     "users",
     "projects",
-]
-
-PROJECTS = [
-    ("GENERAL", "General (everyone)"),
-    ("A", "Project A: Linha Verde Metro Extension"),
-    ("B", "Project B: Offshore Wind Tender"),
 ]
 
 # Test accounts: (username, role, projects, password setting). Admins see every project without user_projects rows.
@@ -123,7 +117,7 @@ def reset_database(database_url: str) -> dict[str, int]:
         connection.execute(f"DROP TABLE IF EXISTS {', '.join(TABLES)} CASCADE")
         connection.execute(SCHEMA_PATH.read_text())
         project_ids = {}
-        for project_code, project_name in PROJECTS:
+        for project_code, project_name in PROJECTS.items():
             project_ids[project_code] = connection.execute(
                 "INSERT INTO projects (code, name) VALUES (%s, %s) RETURNING id", (project_code, project_name)
             ).fetchone()[0]

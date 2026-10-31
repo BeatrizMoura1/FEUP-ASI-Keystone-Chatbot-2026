@@ -1,7 +1,11 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-PROJECTS = ["GENERAL", "A", "B"]
+PROJECTS = {
+    "GENERAL": "General (everyone)",
+    "A": "Project A: Linha Verde Metro Extension",
+    "B": "Project B: Offshore Wind Tender",
+}
 NO_ANSWER_TEXT = "No answer found."
 
 
