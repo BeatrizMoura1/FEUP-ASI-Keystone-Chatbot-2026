@@ -2,10 +2,12 @@ import httpx
 import pytest
 from fastapi.testclient import TestClient
 
-from app import chat, llm, main
+from app import chat, llm
 from app.config import settings
 from app.llm import LLMError
-from app.main import AI_FAILED_MESSAGE, DATABASE_UNAVAILABLE_MESSAGE, UNEXPECTED_ERROR_MESSAGE, app
+from app.main import DATABASE_UNAVAILABLE_MESSAGE, UNEXPECTED_ERROR_MESSAGE, app
+from app.routes import chat as chat_routes
+from app.routes.chat import AI_FAILED_MESSAGE
 from tests.conftest import login_as
 
 UNREACHABLE_DATABASE_URL = "postgresql://localhost:1/unreachable?connect_timeout=2"
@@ -82,7 +84,7 @@ def test_unexpected_error_gives_500_with_a_plain_message(client, monkeypatch):
     def broken_list_conversations(user: dict) -> list[dict]:
         raise RuntimeError("secret internal detail")
 
-    monkeypatch.setattr(main, "list_conversations", broken_list_conversations)
+    monkeypatch.setattr(chat_routes, "list_conversations", broken_list_conversations)
     login_as(client, "employee", "employee123")
     client_without_raising = TestClient(app, raise_server_exceptions=False, cookies=client.cookies)
 

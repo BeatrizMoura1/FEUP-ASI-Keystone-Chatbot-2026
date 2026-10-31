@@ -44,13 +44,15 @@ are still there the next time you log in.
 ```
 app/
   config.py      settings read from the environment or .env (pydantic-settings)
-  db.py          PostgreSQL connection (psycopg 3), password hashing
+  db.py          PostgreSQL connection (psycopg 3)
+  auth.py        password hashing, login, session cookie with expiry, admin check
   documents.py   text extraction (txt/md/pdf), permission-filtered queries, soft delete
   llm.py         generate(): the single LLM entry point (Gemini), 429 retry
   chat.py        prompt building and JSON parsing
-  auth.py        login, session cookie with expiry, admin check
-  conversations.py  saved chats: list, open, save question/answer, delete, rate
-  main.py        FastAPI routes
+  conversations.py  saved chats: list, open, save question/answer, delete
+  ratings.py     thumbs up/down: save a rating, list ratings for the admin
+  main.py        creates the app, error handlers, includes the routes
+  routes/        API and page routes: pages.py, account.py (login), chat.py, admin.py
 db/
   schema.sql     tables, keys, constraints
   reset.py       recreates the tables and seeds projects, test accounts and sample documents

@@ -149,13 +149,19 @@ Browser ──HTTPS──► FastAPI on Render ──► Neon PostgreSQL
 ```
 app/
   config.py         settings from environment variables
-  db.py             PostgreSQL connection (psycopg 3), schema creation, password hashing
-  documents.py      text extraction, seeding, permission-filtered queries, soft delete
+  db.py             PostgreSQL connection (psycopg 3)
+  auth.py           password hashing, login, session cookie, admin check
+  documents.py      text extraction, permission-filtered queries, soft delete
   llm.py            generate(): the single LLM entry point (Gemini), 429 retry
   chat.py           prompt building and JSON parsing
-  auth.py           login, session cookie, admin check
-  conversations.py  chats, messages, ratings
-  main.py           FastAPI routes
+  conversations.py  chats and messages
+  ratings.py        ratings: save, list for the admin
+  main.py           creates the app, error handlers, includes the routes
+  routes/
+    pages.py        login, chat and admin pages
+    account.py      login, logout, current user
+    chat.py         ask, chats, source documents, ratings
+    admin.py        document upload/delete, ratings list
 db/
   schema.sql        tables, keys, constraints
   reset.py          drops the data and re-seeds test accounts, projects and sample documents

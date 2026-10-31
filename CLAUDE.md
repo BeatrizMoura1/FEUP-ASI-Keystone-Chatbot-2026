@@ -18,8 +18,8 @@ standard.
 
 - Python 3.12, FastAPI, psycopg 3, PostgreSQL, plain HTML/CSS/JS, Gemini. No ORM, no frontend framework, no
   vector database.
-- Follow the folder structure in `SPEC.md` section 6. Routes stay in `app/main.py`; logic stays in the module
-  that owns it.
+- Follow the folder structure in `SPEC.md` section 6. Routes live in `app/routes/`, one module per area (pages,
+  account, chat, admin); `app/main.py` only creates the app. Logic stays in the module that owns it.
 - Database changes go into `db/schema.sql`; seed data and test accounts go into `db/reset.py`.
 
 ## Security and permissions
