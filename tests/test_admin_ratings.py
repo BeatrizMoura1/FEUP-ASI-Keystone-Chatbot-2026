@@ -1,35 +1,4 @@
-import json
-
-import pytest
-
-from app import chat
 from tests.conftest import login_as
-
-SOURCE_NAME = "Employee Handbook Leave and Hybrid Work"
-
-
-@pytest.fixture
-def fake_llm(monkeypatch) -> list[str]:
-    """Replace the LLM with a fake that numbers its answers and always cites the Employee Handbook.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Used to replace `chat.generate`.
-
-    Returns
-    -------
-    list of str
-        Every prompt the fake LLM received.
-    """
-    received_prompts = []
-
-    def fake_generate(system_prompt: str, user_prompt: str) -> str:
-        received_prompts.append(user_prompt)
-        return json.dumps({"answer": f"Answer number {len(received_prompts)}", "sources": [SOURCE_NAME]})
-
-    monkeypatch.setattr(chat, "generate", fake_generate)
-    return received_prompts
 
 
 def ask_and_rate(client, question: str, is_positive: bool) -> dict:
@@ -54,7 +23,7 @@ def ask_and_rate(client, question: str, is_positive: bool) -> dict:
     return answer
 
 
-def test_admin_sees_ratings_newest_first(client, fake_llm):
+def test_admin_sees_ratings_newest_first(client, numbered_llm):
     login_as(client, "employee", "employee123")
     ask_and_rate(client, "Carry-over days?", True)
     login_as(client, "newhire", "newhire123")
@@ -73,7 +42,7 @@ def test_admin_sees_ratings_newest_first(client, fake_llm):
     assert all(rating["created_at"] and rating["is_chat_deleted"] is False for rating in ratings)
 
 
-def test_changed_rating_shows_its_latest_value_once(client, fake_llm):
+def test_changed_rating_shows_its_latest_value_once(client, numbered_llm):
     login_as(client, "employee", "employee123")
     answer = ask_and_rate(client, "Carry-over days?", True)
     client.post("/api/ratings", json={"message_id": answer["message_id"], "is_positive": False})
@@ -85,7 +54,7 @@ def test_changed_rating_shows_its_latest_value_once(client, fake_llm):
     assert ratings[0]["is_positive"] is False
 
 
-def test_rating_stays_visible_after_its_chat_is_deleted(client, fake_llm):
+def test_rating_stays_visible_after_its_chat_is_deleted(client, numbered_llm):
     login_as(client, "employee", "employee123")
     answer = ask_and_rate(client, "Carry-over days?", False)
     client.delete(f"/api/conversations/{answer['conversation_id']}")
@@ -102,7 +71,7 @@ def test_no_ratings_gives_an_empty_list(client):
     assert client.get("/api/admin/ratings").json() == []
 
 
-def test_employee_cannot_read_ratings(client, fake_llm):
+def test_employee_cannot_read_ratings(client, numbered_llm):
     login_as(client, "employee", "employee123")
     ask_and_rate(client, "Carry-over days?", True)
 

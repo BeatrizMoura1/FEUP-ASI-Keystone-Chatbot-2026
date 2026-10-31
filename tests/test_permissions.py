@@ -1,43 +1,9 @@
-import json
-
-import pytest
-
-from app import chat
 from app.db import get_connection
 from tests.conftest import login_as
 
 BETA_QUESTION = "What is our walk-away price for the offshore wind substation tender?"
 BETA_DOCUMENT_NAME = "Project B Offshore Wind Tender Bid Strategy CONFIDENTIAL"
 BETA_ONLY_SNIPPETS = ["5.9 million", "Meridian Marine", "Rodrigo Faria", "Costa Norte", BETA_DOCUMENT_NAME]
-
-
-@pytest.fixture
-def echo_llm(monkeypatch) -> list[str]:
-    """Replace the LLM with a fake that echoes the full prompt and cites every document it was given.
-
-    If any Project B text reached the prompt, it would therefore appear in the API response.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Used to replace `chat.generate`.
-
-    Returns
-    -------
-    list of str
-        Every prompt the fake LLM received.
-    """
-    received_prompts = []
-
-    def fake_generate(system_prompt: str, user_prompt: str) -> str:
-        received_prompts.append(user_prompt)
-        with get_connection() as connection:
-            every_document_name = [row["name"] for row in connection.execute("SELECT name FROM documents")]
-        cited_names = [name for name in every_document_name if f'name="{name}"' in user_prompt]
-        return json.dumps({"answer": user_prompt, "sources": cited_names})
-
-    monkeypatch.setattr(chat, "generate", fake_generate)
-    return received_prompts
 
 
 def test_employee_never_sees_project_b_content(client, echo_llm):

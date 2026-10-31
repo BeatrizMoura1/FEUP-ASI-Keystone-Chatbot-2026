@@ -1,41 +1,11 @@
-import json
-
-import pytest
-
 from app import chat
 from app.conversations import make_title
 from app.db import get_connection
 from app.llm import LLMError
-from tests.conftest import login_as
-
-TRAVEL_SOURCE_NAME = "Employee Handbook Leave and Hybrid Work"
+from tests.conftest import CITED_DOCUMENT_NAME, login_as
 
 
-@pytest.fixture
-def fake_llm(monkeypatch) -> list[str]:
-    """Replace the LLM with a fake that always cites the Employee Handbook.
-
-    Parameters
-    ----------
-    monkeypatch : pytest.MonkeyPatch
-        Used to replace `chat.generate`.
-
-    Returns
-    -------
-    list of str
-        Every prompt the fake LLM received.
-    """
-    received_prompts = []
-
-    def fake_generate(system_prompt: str, user_prompt: str) -> str:
-        received_prompts.append(user_prompt)
-        return json.dumps({"answer": f"Answer number {len(received_prompts)}", "sources": [TRAVEL_SOURCE_NAME]})
-
-    monkeypatch.setattr(chat, "generate", fake_generate)
-    return received_prompts
-
-
-def test_first_question_creates_a_titled_conversation(client, fake_llm):
+def test_first_question_creates_a_titled_conversation(client, numbered_llm):
     login_as(client, "employee", "employee123")
 
     response = client.post("/api/ask", json={"question": "How many leave days do I get?"})
@@ -46,7 +16,7 @@ def test_first_question_creates_a_titled_conversation(client, fake_llm):
     assert [conversation["id"] for conversation in conversation_list] == [response.json()["conversation_id"]]
 
 
-def test_follow_up_question_is_added_to_the_same_conversation(client, fake_llm):
+def test_follow_up_question_is_added_to_the_same_conversation(client, numbered_llm):
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "First?"}).json()["conversation_id"]
 
@@ -56,11 +26,11 @@ def test_follow_up_question_is_added_to_the_same_conversation(client, fake_llm):
     assert [(message["role"], message["content"]) for message in conversation["messages"]] == [
         ("user", "First?"), ("assistant", "Answer number 1"), ("user", "Second?"), ("assistant", "Answer number 2"),
     ]
-    assert conversation["messages"][1]["sources"][0]["name"] == TRAVEL_SOURCE_NAME
+    assert conversation["messages"][1]["sources"][0]["name"] == CITED_DOCUMENT_NAME
     assert len(client.get("/api/conversations").json()) == 1
 
 
-def test_history_survives_logout_and_login(client, fake_llm):
+def test_history_survives_logout_and_login(client, numbered_llm):
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "Remember me?"}).json()["conversation_id"]
     client.post("/api/logout")
@@ -70,7 +40,7 @@ def test_history_survives_logout_and_login(client, fake_llm):
     assert client.get(f"/api/conversations/{conversation_id}").json()["messages"][0]["content"] == "Remember me?"
 
 
-def test_users_cannot_see_or_change_each_others_conversations(client, fake_llm):
+def test_users_cannot_see_or_change_each_others_conversations(client, numbered_llm):
     login_as(client, "admin", "admin123")
     admin_answer = client.post("/api/ask", json={"question": "Admin secret question"}).json()
     client.post("/api/logout")
@@ -85,10 +55,10 @@ def test_users_cannot_see_or_change_each_others_conversations(client, fake_llm):
         "/api/ask", json={"question": "Add to admin chat", "conversation_id": admin_answer["conversation_id"]}
     )
     assert hijack_response.status_code == 404
-    assert len(fake_llm) == 1
+    assert len(numbered_llm) == 1
 
 
-def test_delete_conversation_removes_its_messages(client, fake_llm):
+def test_delete_conversation_removes_its_messages(client, numbered_llm):
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "Delete me"}).json()["conversation_id"]
 
@@ -100,7 +70,7 @@ def test_delete_conversation_removes_its_messages(client, fake_llm):
         assert connection.execute("SELECT count(*) FROM messages").fetchone()["count"] == 0
 
 
-def test_rating_is_stored_and_shown_in_history(client, fake_llm):
+def test_rating_is_stored_and_shown_in_history(client, numbered_llm):
     login_as(client, "employee", "employee123")
     answer = client.post("/api/ask", json={"question": "Rate this"}).json()
 
