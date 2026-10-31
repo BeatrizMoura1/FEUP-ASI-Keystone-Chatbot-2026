@@ -24,7 +24,6 @@ TABLES = [
     "projects",
 ]
 
-# Test accounts: (username, role, projects, password setting). Admins see every project without user_projects rows.
 TEST_ACCOUNTS = [
     ("employee", "employee", ["GENERAL", "A"], "employee_password"),
     ("newhire", "employee", ["GENERAL"], "newhire_password"),
@@ -91,6 +90,9 @@ def reset_database(database_url: str) -> dict[str, int]:
 
     All existing data (chats, ratings, uploaded documents, sessions) is deleted. Everything runs in one
     transaction, so a failure leaves the database as it was.
+
+    Each entry of TEST_ACCOUNTS is (username, role, project codes, name of the password setting). Admins see
+    every project, so they get no user_projects rows.
 
     Parameters
     ----------

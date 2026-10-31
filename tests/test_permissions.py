@@ -7,6 +7,7 @@ BETA_ONLY_SNIPPETS = ["5.9 million", "Meridian Marine", "Rodrigo Faria", "Costa 
 
 
 def test_employee_never_sees_project_b_content(client, echo_llm):
+    """No Project B text or citation reaches an employee's prompt or response (M3 leak test)."""
     login_as(client, "employee", "employee123")
 
     response = client.post("/api/ask", json={"question": BETA_QUESTION})
@@ -22,6 +23,7 @@ def test_employee_never_sees_project_b_content(client, echo_llm):
 
 
 def test_admin_prompt_includes_project_b(client, echo_llm):
+    """Admins get Project B documents in their prompt and citations."""
     login_as(client, "admin", "admin123")
 
     response = client.post("/api/ask", json={"question": BETA_QUESTION})
@@ -31,6 +33,7 @@ def test_admin_prompt_includes_project_b(client, echo_llm):
 
 
 def test_employee_cannot_open_project_b_document(client):
+    """An employee cannot open a Project B document by its id (M3)."""
     login_as(client, "employee", "employee123")
     with get_connection() as connection:
         beta_document_id = connection.execute(
@@ -41,12 +44,14 @@ def test_employee_cannot_open_project_b_document(client):
 
 
 def test_employee_cannot_use_admin_api(client):
+    """Employees get 403 on the admin API (M4)."""
     login_as(client, "employee", "employee123")
 
     assert client.get("/api/admin/documents").status_code == 403
 
 
 def test_ask_requires_login(client):
+    """Asking a question needs a login."""
     assert client.post("/api/ask", json={"question": "hi"}).status_code == 401
 
 
@@ -58,6 +63,7 @@ PROJECT_A_ONLY_SNIPPETS = ["Alameda Norte", "Quinta das Flores", *PROJECT_A_DOCU
 
 
 def test_newhire_never_sees_project_a_or_b_content(client, echo_llm):
+    """No Project A or B text or citation reaches newhire's prompt or response (M3 leak test)."""
     login_as(client, "newhire", "newhire123")
 
     response = client.post("/api/ask", json={"question": "What settlement triggers a red alert on Linha Verde?"})
@@ -70,6 +76,7 @@ def test_newhire_never_sees_project_a_or_b_content(client, echo_llm):
 
 
 def test_newhire_cannot_open_project_a_document(client):
+    """newhire cannot open a Project A document by its id (M3)."""
     login_as(client, "newhire", "newhire123")
     with get_connection() as connection:
         project_a_document_id = connection.execute(

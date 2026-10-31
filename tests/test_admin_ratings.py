@@ -24,6 +24,7 @@ def ask_and_rate(client, question: str, is_positive: bool) -> dict:
 
 
 def test_admin_sees_ratings_newest_first(client, numbered_llm):
+    """The admin sees every user's ratings, newest first, with question, answer and user (S1)."""
     login_as(client, "employee", "employee123")
     ask_and_rate(client, "Carry-over days?", True)
     login_as(client, "newhire", "newhire123")
@@ -43,6 +44,7 @@ def test_admin_sees_ratings_newest_first(client, numbered_llm):
 
 
 def test_changed_rating_shows_its_latest_value_once(client, numbered_llm):
+    """Changing a rating updates it in place instead of adding a second one."""
     login_as(client, "employee", "employee123")
     answer = ask_and_rate(client, "Carry-over days?", True)
     client.post("/api/ratings", json={"message_id": answer["message_id"], "is_positive": False})
@@ -55,6 +57,7 @@ def test_changed_rating_shows_its_latest_value_once(client, numbered_llm):
 
 
 def test_rating_stays_visible_after_its_chat_is_deleted(client, numbered_llm):
+    """A rating stays listed, marked as from a deleted chat, after the user deletes the chat."""
     login_as(client, "employee", "employee123")
     answer = ask_and_rate(client, "Carry-over days?", False)
     client.delete(f"/api/conversations/{answer['conversation_id']}")
@@ -66,12 +69,14 @@ def test_rating_stays_visible_after_its_chat_is_deleted(client, numbered_llm):
 
 
 def test_no_ratings_gives_an_empty_list(client):
+    """With no ratings the admin list is empty."""
     login_as(client, "admin", "admin123")
 
     assert client.get("/api/admin/ratings").json() == []
 
 
 def test_employee_cannot_read_ratings(client, numbered_llm):
+    """Employees get 403 on the admin ratings list."""
     login_as(client, "employee", "employee123")
     ask_and_rate(client, "Carry-over days?", True)
 
@@ -79,4 +84,5 @@ def test_employee_cannot_read_ratings(client, numbered_llm):
 
 
 def test_ratings_require_login(client):
+    """The ratings list needs a login."""
     assert client.get("/api/admin/ratings").status_code == 401

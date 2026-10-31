@@ -28,6 +28,7 @@ def upload(client, file_name: str, file_bytes: bytes, project: str):
 
 
 def test_uploaded_document_is_searchable_right_away(client, citing_llm):
+    """A document uploaded to General reaches the next employee prompt and is cited (M5)."""
     login_as(client, "admin", "admin123")
     upload_response = upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "GENERAL")
     login_as(client, "employee", "employee123")
@@ -41,6 +42,7 @@ def test_uploaded_document_is_searchable_right_away(client, citing_llm):
 
 
 def test_document_uploaded_to_project_b_stays_hidden_from_employee(client, citing_llm):
+    """A document uploaded to Project B never reaches an employee's prompt (M3)."""
     login_as(client, "admin", "admin123")
     upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "B")
     login_as(client, "employee", "employee123")
@@ -51,6 +53,7 @@ def test_document_uploaded_to_project_b_stays_hidden_from_employee(client, citin
 
 
 def test_deleted_document_never_reaches_the_prompt(client, citing_llm):
+    """After deletion a document is in neither the admin's nor the employee's prompt, list or drawer (M5)."""
     login_as(client, "admin", "admin123")
     document_id = upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "GENERAL").json()["id"]
 
@@ -70,6 +73,7 @@ def test_deleted_document_never_reaches_the_prompt(client, citing_llm):
 
 
 def test_deleting_twice_returns_404(client):
+    """Deleting an already deleted document returns 404."""
     login_as(client, "admin", "admin123")
     document_id = upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "GENERAL").json()["id"]
     client.delete(f"/api/admin/documents/{document_id}")
@@ -78,6 +82,7 @@ def test_deleting_twice_returns_404(client):
 
 
 def test_deleted_document_name_can_be_uploaded_again(client, citing_llm):
+    """A deleted document's name can be reused, and only the new text reaches the prompt."""
     login_as(client, "admin", "admin123")
     first_id = upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "GENERAL").json()["id"]
     client.delete(f"/api/admin/documents/{first_id}")
@@ -92,6 +97,7 @@ def test_deleted_document_name_can_be_uploaded_again(client, citing_llm):
 
 
 def test_unsupported_file_type_is_rejected(client):
+    """An upload that is not .txt, .md or .pdf is rejected with a readable message."""
     login_as(client, "admin", "admin123")
 
     response = upload(client, "photo.png", b"not a document", "GENERAL")
@@ -101,6 +107,7 @@ def test_unsupported_file_type_is_rejected(client):
 
 
 def test_empty_file_is_rejected(client):
+    """An upload with no extractable text is rejected with a readable message."""
     login_as(client, "admin", "admin123")
 
     response = upload(client, "Empty.txt", b"", "GENERAL")
@@ -110,6 +117,7 @@ def test_empty_file_is_rejected(client):
 
 
 def test_unknown_project_is_rejected(client):
+    """An upload to a project that does not exist is rejected."""
     login_as(client, "admin", "admin123")
 
     response = upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "Z")
@@ -119,6 +127,7 @@ def test_unknown_project_is_rejected(client):
 
 
 def test_admin_list_shows_projects_with_general_first(client):
+    """The admin list has the 7 sample documents and offers General as the first project."""
     login_as(client, "admin", "admin123")
 
     listing = client.get("/api/admin/documents").json()
@@ -128,6 +137,7 @@ def test_admin_list_shows_projects_with_general_first(client):
 
 
 def test_employee_cannot_upload_or_delete(client):
+    """Employees get 403 on document upload and delete (M4)."""
     login_as(client, "employee", "employee123")
 
     assert upload(client, UPLOADED_FILE_NAME, UPLOADED_TEXT, "GENERAL").status_code == 403

@@ -29,6 +29,7 @@ def gemini_configured(monkeypatch) -> None:
 
 
 def test_llm_failure_shows_a_plain_message_without_internal_details(client, monkeypatch):
+    """An LLM error shows the plain failure message, never the provider's details."""
     def failing_generate(system_prompt: str, user_prompt: str) -> str:
         raise LLMError("Gemini returned HTTP 400: API key not valid (internal detail)")
 
@@ -47,6 +48,7 @@ def test_llm_failure_shows_a_plain_message_without_internal_details(client, monk
     [httpx.ReadTimeout("read timed out"), httpx.ConnectError("connection refused")],
 )
 def test_gemini_timeout_or_connection_failure_becomes_ai_failed(client, monkeypatch, gemini_configured, network_error):
+    """A Gemini timeout or connection failure gives the plain failure message and saves nothing."""
     def failing_post(*args, **kwargs):
         raise network_error
 
@@ -61,6 +63,7 @@ def test_gemini_timeout_or_connection_failure_becomes_ai_failed(client, monkeypa
 
 
 def test_too_long_question_is_rejected(client):
+    """A question over 2000 characters is rejected."""
     login_as(client, "employee", "employee123")
 
     response = client.post("/api/ask", json={"question": "x" * 2001})
@@ -69,6 +72,7 @@ def test_too_long_question_is_rejected(client):
 
 
 def test_unreachable_database_gives_503_with_a_plain_message(client, monkeypatch):
+    """When the database is unreachable, requests get 503 with a plain message, login included."""
     login_as(client, "employee", "employee123")
     monkeypatch.setattr(settings, "database_url", UNREACHABLE_DATABASE_URL)
 
@@ -81,6 +85,7 @@ def test_unreachable_database_gives_503_with_a_plain_message(client, monkeypatch
 
 
 def test_unexpected_error_gives_500_with_a_plain_message(client, monkeypatch):
+    """Any unhandled error gives 500 with a plain message, never the internal details."""
     def broken_list_conversations(user: dict) -> list[dict]:
         raise RuntimeError("secret internal detail")
 

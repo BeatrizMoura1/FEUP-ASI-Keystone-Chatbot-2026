@@ -65,6 +65,7 @@ def ask_project_a_question(client, queued_llm: FakeLLM) -> dict:
 
 
 def test_follow_up_question_gets_the_earlier_messages(client, queued_llm):
+    """A follow-up prompt includes the earlier question and answer; the first prompt has no history."""
     login_as(client, "employee", "employee123")
     queued_llm.reply_with("You need a helmet and a gas detector.", ["Site Health and Safety Rules"])
     conversation_id = client.post("/api/ask", json={"question": "What PPE do I need in a tunnel?"}).json()[
@@ -81,6 +82,7 @@ def test_follow_up_question_gets_the_earlier_messages(client, queued_llm):
 
 
 def test_history_is_limited_to_the_configured_number_of_messages(client, queued_llm, monkeypatch):
+    """Only the last CHAT_HISTORY_MESSAGES messages are sent with a follow-up."""
     monkeypatch.setattr(settings, "chat_history_messages", 2)
     for answer_number in (1, 2, 3):
         queued_llm.reply_with(f"Cited answer {answer_number}", ["Site Health and Safety Rules"])
@@ -97,6 +99,7 @@ def test_history_is_limited_to_the_configured_number_of_messages(client, queued_
 
 
 def test_history_can_be_switched_off(client, queued_llm, monkeypatch):
+    """With CHAT_HISTORY_MESSAGES set to 0 no history is sent."""
     monkeypatch.setattr(settings, "chat_history_messages", 0)
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "First"}).json()["conversation_id"]
@@ -107,6 +110,7 @@ def test_history_can_be_switched_off(client, queued_llm, monkeypatch):
 
 
 def test_answer_is_hidden_after_access_is_revoked_and_shown_again_when_restored(client, queued_llm):
+    """A saved answer is hidden when the user loses access to its source and shown again when access returns (M3)."""
     answer = ask_project_a_question(client, queued_llm)
 
     set_employee_project_a_access(False)
@@ -125,6 +129,7 @@ def test_answer_is_hidden_after_access_is_revoked_and_shown_again_when_restored(
 
 
 def test_hidden_answer_is_not_sent_to_the_model_in_a_follow_up(client, queued_llm):
+    """A hidden answer is left out of the history sent with a follow-up (M3)."""
     answer = ask_project_a_question(client, queued_llm)
     set_employee_project_a_access(False)
 
@@ -137,6 +142,7 @@ def test_hidden_answer_is_not_sent_to_the_model_in_a_follow_up(client, queued_ll
 
 
 def test_answer_is_hidden_after_its_source_document_is_deleted(client, queued_llm):
+    """A saved answer is hidden once its source document is deleted (M5)."""
     answer = ask_project_a_question(client, queued_llm)
     with get_connection() as connection:
         connection.execute("UPDATE documents SET deleted_at = now() WHERE name = %s", (PROJECT_A_DOCUMENT_NAME,))
@@ -147,6 +153,7 @@ def test_answer_is_hidden_after_its_source_document_is_deleted(client, queued_ll
 
 
 def test_uncited_reply_is_saved_as_no_answer_and_never_shown(client, queued_llm):
+    """Uncited replies are saved as "No answer found.", so their text never reaches the user (M1, M3)."""
     login_as(client, "employee", "employee123")
     queued_llm.queued_replies.append("Raw text that is not JSON and cites nothing (PROJECT-A-ONLY-PHRASE)")
     queued_llm.reply_with("Valid JSON that cites nothing (PROJECT-A-ONLY-PHRASE)", [])
@@ -174,4 +181,5 @@ def test_uncited_reply_is_saved_as_no_answer_and_never_shown(client, queued_llm)
     ],
 )
 def test_is_answer_visible(answer, cited_document_ids, context_document_ids, allowed_document_ids, expected_visible):
+    """The visibility rule for saved answers, for cited, uncited and "No answer found" answers."""
     assert is_answer_visible(answer, cited_document_ids, context_document_ids, allowed_document_ids) is expected_visible

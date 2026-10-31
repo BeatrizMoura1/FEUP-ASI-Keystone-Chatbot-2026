@@ -6,6 +6,7 @@ from tests.conftest import CITED_DOCUMENT_NAME, login_as
 
 
 def test_first_question_creates_a_titled_conversation(client, numbered_llm):
+    """The first question creates a chat titled after it (S2)."""
     login_as(client, "employee", "employee123")
 
     response = client.post("/api/ask", json={"question": "How many leave days do I get?"})
@@ -17,6 +18,7 @@ def test_first_question_creates_a_titled_conversation(client, numbered_llm):
 
 
 def test_follow_up_question_is_added_to_the_same_conversation(client, numbered_llm):
+    """A follow-up is saved in the same chat, with its sources."""
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "First?"}).json()["conversation_id"]
 
@@ -31,6 +33,7 @@ def test_follow_up_question_is_added_to_the_same_conversation(client, numbered_l
 
 
 def test_history_survives_logout_and_login(client, numbered_llm):
+    """Chats are still there after logging out and in again (S2)."""
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "Remember me?"}).json()["conversation_id"]
     client.post("/api/logout")
@@ -41,6 +44,7 @@ def test_history_survives_logout_and_login(client, numbered_llm):
 
 
 def test_users_cannot_see_or_change_each_others_conversations(client, numbered_llm):
+    """A user cannot open, add to or delete another user's chat."""
     login_as(client, "admin", "admin123")
     admin_answer = client.post("/api/ask", json={"question": "Admin secret question"}).json()
     client.post("/api/logout")
@@ -59,6 +63,7 @@ def test_users_cannot_see_or_change_each_others_conversations(client, numbered_l
 
 
 def test_delete_conversation_removes_its_messages(client, numbered_llm):
+    """Deleting a chat removes it and its messages (S2)."""
     login_as(client, "employee", "employee123")
     conversation_id = client.post("/api/ask", json={"question": "Delete me"}).json()["conversation_id"]
 
@@ -71,6 +76,7 @@ def test_delete_conversation_removes_its_messages(client, numbered_llm):
 
 
 def test_rating_is_stored_and_shown_in_history(client, numbered_llm):
+    """A rating is saved, can be changed, and shows when the chat is reopened (S1)."""
     login_as(client, "employee", "employee123")
     answer = client.post("/api/ask", json={"question": "Rate this"}).json()
 
@@ -85,6 +91,7 @@ def test_rating_is_stored_and_shown_in_history(client, numbered_llm):
 
 
 def test_failed_llm_call_saves_nothing(client, monkeypatch):
+    """When the LLM fails nothing is saved and the user gets 502."""
     def broken_generate(system_prompt: str, user_prompt: str) -> str:
         raise LLMError("service down")
 
@@ -97,6 +104,7 @@ def test_failed_llm_call_saves_nothing(client, monkeypatch):
 
 
 def test_make_title_shortens_long_questions():
+    """Chat titles are kept to one line and shortened with an ellipsis."""
     long_question = "What   is the\nprocedure " + "for checking calculations " * 5
 
     conversation_title = make_title(long_question)
