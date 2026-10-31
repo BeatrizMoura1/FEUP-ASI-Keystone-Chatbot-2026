@@ -80,9 +80,12 @@ Flows:
 | Situation | Message |
 |-----------|---------|
 | Wrong username or password | "Wrong username or password" |
-| Empty question | The send button stays disabled |
-| Gemini rate limit after the retries | "Keystone is busy, please try again in a minute"; the question stays in the input box |
-| Gemini fails for another reason | "The AI service failed, please try again"; the question stays in the input box |
+| Empty or too long question | The send button stays disabled; the box stops at 2000 characters |
+| Gemini rate limit after the retries | "Keystone is busy, please try again in a minute."; the question stays on screen with a Retry button |
+| Gemini fails, times out or cannot be reached | "The AI service failed, please try again."; the question stays on screen with a Retry button |
+| The browser cannot reach Keystone | "Could not reach Keystone. Check your internet connection and retry." |
+| The database cannot be reached | "Keystone cannot reach its database right now, please try again in a minute." (login shows "Keystone is unavailable right now") |
+| Any other server error | "Something went wrong on our side, please try again."; the details go only to the server log |
 | Unsupported or empty upload | "Unsupported file type…" or "No text could be extracted…" |
 | Session expired or not logged in | Redirect to Login |
 | Chat or document that does not exist or is not the user's | "Not found" |

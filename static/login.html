@@ -26,16 +26,22 @@
       const loginError = document.getElementById("login-error");
       loginButton.disabled = true;
       loginError.textContent = "";
-      const response = await fetch("/api/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          username: document.getElementById("username-input").value,
-          password: document.getElementById("password-input").value,
-        }),
-      });
-      if (response.ok) { window.location.href = "/"; return; }
-      loginError.textContent = "Wrong username or password.";
+      try {
+        const response = await fetch("/api/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            username: document.getElementById("username-input").value,
+            password: document.getElementById("password-input").value,
+          }),
+        });
+        if (response.ok) { window.location.href = "/"; return; }
+        loginError.textContent = response.status === 401
+          ? "Wrong username or password."
+          : "Keystone is unavailable right now. Please try again in a minute.";
+      } catch {
+        loginError.textContent = "Could not reach Keystone. Check your internet connection and retry.";
+      }
       loginButton.disabled = false;
     };
   </script>

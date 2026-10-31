@@ -66,7 +66,7 @@ def test_rate_limit_retries_then_returns_429(client, monkeypatch):
     response = client.post("/api/ask", json={"question": "anything"})
 
     assert response.status_code == 429
-    assert "rate-limited" in response.json()["error"]
+    assert response.json() == {"error": "Keystone is busy, please try again in a minute."}
     assert call_counter["num_calls"] == llm.settings.llm_max_retries + 1
 
 

@@ -9,6 +9,8 @@ const sidebar = document.getElementById("sidebar");
 const historyBox = document.getElementById("history");
 const NO_ANSWER_TEXT = "No answer found.";
 const CONVERSATION_HASH_PREFIX = "#chat-";
+const MAX_QUESTION_LENGTH = 2000;
+const NETWORK_ERROR_TEXT = "Could not reach Keystone. Check your internet connection and retry.";
 
 let isWaitingForAnswer = false;
 let currentConversationId = null;
@@ -45,6 +47,29 @@ function createElement(tagName, className, text) {
 
 function scrollToBottom() {
   threadScroll.scrollTop = threadScroll.scrollHeight;
+}
+
+/* ---------- Requests ---------- */
+
+async function readJson(response) {
+  try {
+    return await response.json();
+  } catch {
+    return {};
+  }
+}
+
+function failureMessage(response, responseData) {
+  if (responseData.error) return responseData.error;
+  if (typeof responseData.detail === "string") return responseData.detail;
+  if (response.status === 422) return `Your question is too long. Keep it under ${MAX_QUESTION_LENGTH} characters.`;
+  return "Something went wrong on our side, please try again.";
+}
+
+function redirectIfLoggedOut(response) {
+  if (response.status !== 401) return false;
+  window.location.href = "/login";
+  return true;
 }
 
 /* ---------- Messages ---------- */
@@ -87,6 +112,7 @@ function addTypingIndicator() {
 
 async function openDocument(documentId) {
   const response = await fetch(`/api/documents/${documentId}`);
+  if (redirectIfLoggedOut(response)) return;
   const projectBadge = document.getElementById("drawer-project");
   if (!response.ok) {
     document.getElementById("drawer-name").textContent = "Document unavailable";
@@ -122,7 +148,8 @@ function addRatingButtons(body, messageId, savedRating) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ message_id: messageId, is_positive: isPositive }),
       });
-      if (!response.ok) { feedbackNote.textContent = "Could not save feedback"; return; }
+      if (redirectIfLoggedOut(response)) return;
+      if (!response.ok) { feedbackNote.textContent = "Could not save feedback, please retry"; return; }
       ratingButtons.forEach((button) => button.classList.toggle("selected", button === ratingButton));
       feedbackNote.textContent = "Thanks for your feedback";
     };
@@ -188,7 +215,7 @@ function historyGroupLabel(updatedAt) {
 
 async function loadHistory() {
   const response = await fetch("/api/conversations");
-  if (!response.ok) return;
+  if (redirectIfLoggedOut(response) || !response.ok) return;
   const conversations = await response.json();
   historyBox.innerHTML = "";
   if (!conversations.length) {
@@ -252,6 +279,7 @@ async function openConversation(conversationId) {
   closeSidebar();
   const response = await fetch(`/api/conversations/${conversationId}`);
   if (versionAtOpen !== viewVersion) return;
+  if (redirectIfLoggedOut(response)) return;
   if (!response.ok) { startNewChat(); return; }
   const conversation = await response.json();
   for (const message of conversation.messages) {
@@ -263,6 +291,8 @@ async function openConversation(conversationId) {
 async function deleteConversation(conversationId, conversationTitle) {
   if (!confirm(`Delete the chat "${conversationTitle}"? This cannot be undone.`)) return;
   const response = await fetch(`/api/conversations/${conversationId}`, { method: "DELETE" });
+  if (redirectIfLoggedOut(response)) return;
+  if (!response.ok) alert("Could not delete the chat, please try again.");
   if (response.ok && conversationId === currentConversationId) startNewChat();
   loadHistory();
 }
@@ -290,12 +320,12 @@ async function ask(question, showQuestion = true) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ question, conversation_id: currentConversationId }),
     });
-    if (response.status === 401) { window.location.href = "/login"; return; }
-    const responseData = await response.json();
+    if (redirectIfLoggedOut(response)) return;
+    const responseData = await readJson(response);
     typingRow.remove();
     if (versionAtSend !== viewVersion) { loadHistory(); return; }
     if (!response.ok) {
-      showError(question, responseData.error || responseData.detail || "Request failed.");
+      showError(question, failureMessage(response, responseData));
       return;
     }
     if (currentConversationId === null) {
@@ -306,7 +336,8 @@ async function ask(question, showQuestion = true) {
     loadHistory();
   } catch (networkError) {
     typingRow.remove();
-    if (versionAtSend === viewVersion) showError(question, `Could not reach the server: ${networkError}`);
+    console.error("Ask request failed:", networkError);
+    if (versionAtSend === viewVersion) showError(question, NETWORK_ERROR_TEXT);
   } finally {
     isWaitingForAnswer = false;
     updateSendButton();

@@ -56,7 +56,11 @@
 
     async function loadDocuments() {
       const response = await fetch("/api/admin/documents");
-      if (!response.ok) { window.location.href = "/"; return; }
+      if (response.status === 401 || response.status === 403) { window.location.href = "/"; return; }
+      if (!response.ok) {
+        documentRows.innerHTML = '<tr class="empty-row"><td colspan="4">Could not load the documents. Refresh the page to retry.</td></tr>';
+        return;
+      }
       const { documents, projects } = await response.json();
       if (!projectSelect.options.length) {
         for (const project of projects) projectSelect.add(new Option(project === "GENERAL" ? "General (everyone)" : `Project ${project}`, project));
@@ -85,7 +89,11 @@
         deleteButton.onclick = async () => {
           if (!confirm(`Delete "${documentInfo.name}"?`)) return;
           const deleteResponse = await fetch(`/api/admin/documents/${documentInfo.id}`, { method: "DELETE" });
-          setStatus(deleteResponse.ok ? `Deleted "${documentInfo.name}".` : "Delete failed.", deleteResponse.ok ? "success" : "error");
+          if (deleteResponse.status === 401) { window.location.href = "/login"; return; }
+          setStatus(
+            deleteResponse.ok ? `Deleted "${documentInfo.name}".` : "Delete failed, please refresh and try again.",
+            deleteResponse.ok ? "success" : "error",
+          );
           loadDocuments();
         };
         actionsCell.appendChild(deleteButton);
@@ -147,10 +155,15 @@
       formData.append("project", projectSelect.value);
       uploadButton.disabled = true;
       setStatus("Uploading…");
-      const response = await fetch("/api/admin/documents", { method: "POST", body: formData });
-      const responseData = await response.json();
-      if (response.ok) setStatus(`Uploaded "${responseData.name}" to ${responseData.project}.`, "success");
-      else setStatus(`Error: ${responseData.detail}`, "error");
+      try {
+        const response = await fetch("/api/admin/documents", { method: "POST", body: formData });
+        if (response.status === 401) { window.location.href = "/login"; return; }
+        const responseData = await response.json().catch(() => ({}));
+        if (response.ok) setStatus(`Uploaded "${responseData.name}" to ${responseData.project}.`, "success");
+        else setStatus(`Error: ${typeof responseData.detail === "string" ? responseData.detail : "upload failed, please try again."}`, "error");
+      } catch {
+        setStatus("Could not reach Keystone. Check your internet connection and retry.", "error");
+      }
       uploadButton.disabled = false;
       document.getElementById("file-input").value = "";
       loadDocuments();

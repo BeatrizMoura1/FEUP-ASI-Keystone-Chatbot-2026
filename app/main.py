@@ -1,5 +1,7 @@
 import logging
 
+import psycopg
+
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -33,8 +35,53 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("knowledge_finder")
 
 
+BUSY_MESSAGE = "Keystone is busy, please try again in a minute."
+AI_FAILED_MESSAGE = "The AI service failed, please try again."
+DATABASE_UNAVAILABLE_MESSAGE = "Keystone cannot reach its database right now, please try again in a minute."
+UNEXPECTED_ERROR_MESSAGE = "Something went wrong on our side, please try again."
+
 app = FastAPI(title="Keystone")
 app.mount("/static", StaticFiles(directory="static"), name="static")
+
+
+@app.exception_handler(psycopg.OperationalError)
+def database_unavailable(request: Request, error: psycopg.OperationalError) -> JSONResponse:
+    """Answer 503 with a plain message when the database cannot be reached; the details go to the log.
+
+    Parameters
+    ----------
+    request : Request
+        The request that failed.
+    error : psycopg.OperationalError
+        The connection or server error.
+
+    Returns
+    -------
+    JSONResponse
+        {"detail": DATABASE_UNAVAILABLE_MESSAGE} with HTTP 503.
+    """
+    logger.error("Database unavailable during %s %s: %s", request.method, request.url.path, error)
+    return JSONResponse({"detail": DATABASE_UNAVAILABLE_MESSAGE}, status_code=503)
+
+
+@app.exception_handler(Exception)
+def unexpected_error(request: Request, error: Exception) -> JSONResponse:
+    """Answer 500 with a plain JSON message for any unhandled error; the traceback goes to the log.
+
+    Parameters
+    ----------
+    request : Request
+        The request that failed.
+    error : Exception
+        The unhandled error.
+
+    Returns
+    -------
+    JSONResponse
+        {"detail": UNEXPECTED_ERROR_MESSAGE} with HTTP 500.
+    """
+    logger.exception("Unhandled error during %s %s: %s", request.method, request.url.path, error)
+    return JSONResponse({"detail": UNEXPECTED_ERROR_MESSAGE}, status_code=500)
 
 
 class AskRequest(BaseModel):
@@ -172,7 +219,7 @@ def ask(ask_request: AskRequest, user: dict = Depends(get_current_user)) -> JSON
     -------
     JSONResponse
         {"answer", "sources", "conversation_id", "title", "message_id"} on success,
-        {"error"} with HTTP 429/502 on LLM failure (nothing is saved then).
+        {"error"} with HTTP 429 (BUSY_MESSAGE) or 502 (AI_FAILED_MESSAGE) on LLM failure; nothing is saved then.
 
     Raises
     ------
@@ -187,13 +234,11 @@ def ask(ask_request: AskRequest, user: dict = Depends(get_current_user)) -> JSON
     try:
         answer_data = answer_question(user, ask_request.question, conversation_history)
     except RateLimitError:
-        return JSONResponse(
-            {"error": "The AI service is rate-limited right now (HTTP 429). Please wait a few seconds and retry."},
-            status_code=429,
-        )
+        logger.warning("LLM still rate-limited after retries for user '%s'.", user["username"])
+        return JSONResponse({"error": BUSY_MESSAGE}, status_code=429)
     except LLMError as error:
         logger.error("LLM call failed for user '%s': %s", user["username"], error)
-        return JSONResponse({"error": f"The AI service failed: {error}"}, status_code=502)
+        return JSONResponse({"error": AI_FAILED_MESSAGE}, status_code=502)
     saved_exchange = save_exchange(
         user,
         ask_request.conversation_id,

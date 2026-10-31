@@ -76,7 +76,7 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> str:
     RateLimitError
         On HTTP 429.
     LLMError
-        On missing config, other HTTP errors or an empty/blocked response.
+        On missing config, a timeout or connection failure, other HTTP errors or an empty/blocked response.
     """
     if not settings.gemini_api_key or not settings.gemini_model:
         raise LLMError("GEMINI_API_KEY and GEMINI_MODEL must be set in .env")
@@ -85,12 +85,17 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> str:
         "contents": [{"role": "user", "parts": [{"text": user_prompt}]}],
         "generationConfig": {"responseMimeType": "application/json", "temperature": 0},
     }
-    response = httpx.post(
-        GEMINI_URL_TEMPLATE.format(model=settings.gemini_model),
-        headers={"x-goog-api-key": settings.gemini_api_key},
-        json=request_body,
-        timeout=REQUEST_TIMEOUT_SECONDS,
-    )
+    try:
+        response = httpx.post(
+            GEMINI_URL_TEMPLATE.format(model=settings.gemini_model),
+            headers={"x-goog-api-key": settings.gemini_api_key},
+            json=request_body,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
+    except httpx.TimeoutException as error:
+        raise LLMError(f"Gemini did not answer within {REQUEST_TIMEOUT_SECONDS}s") from error
+    except httpx.HTTPError as error:
+        raise LLMError(f"Cannot reach Gemini: {error}") from error
     if response.status_code == 429:
         raise RateLimitError("Gemini rate limit reached")
     if response.status_code != 200:
