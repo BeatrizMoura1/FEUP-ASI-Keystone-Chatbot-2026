@@ -77,9 +77,12 @@
         const projectBadge = document.createElement("span");
         projectBadge.className = `badge project-${documentInfo.project}`;
         projectBadge.textContent = documentInfo.project === "GENERAL" ? "General" : `Project ${documentInfo.project}`;
-        row.insertCell().appendChild(projectBadge);
+        const projectCell = row.insertCell();
+        projectCell.dataset.label = "Project";
+        projectCell.appendChild(projectBadge);
         const sizeCell = row.insertCell();
         sizeCell.className = "num";
+        sizeCell.dataset.label = "Characters";
         sizeCell.textContent = documentInfo.num_chars.toLocaleString();
         const actionsCell = row.insertCell();
         actionsCell.className = "row-actions";
@@ -133,16 +136,20 @@
         ratingBadge.textContent = rating.is_positive ? "👍 Helpful" : "👎 Not helpful";
         row.insertCell().appendChild(ratingBadge);
         const questionCell = addTextCell(row, rating.question, "doc-name");
+        questionCell.dataset.label = "Question";
         if (rating.is_chat_deleted) {
           const deletedNote = document.createElement("small");
           deletedNote.className = "muted-note";
           deletedNote.textContent = "Chat deleted by the user";
           questionCell.appendChild(deletedNote);
         }
-        addTextCell(row, rating.answer);
-        row.insertCell().textContent = rating.username;
+        addTextCell(row, rating.answer).dataset.label = "Answer";
+        const userCell = row.insertCell();
+        userCell.dataset.label = "User";
+        userCell.textContent = rating.username;
         const dateCell = row.insertCell();
         dateCell.className = "num";
+        dateCell.dataset.label = "Date";
         dateCell.textContent = RATING_DATE_FORMAT.format(new Date(rating.created_at));
       }
     }

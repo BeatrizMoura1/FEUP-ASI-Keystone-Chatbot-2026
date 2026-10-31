@@ -110,6 +110,18 @@ function addTypingIndicator() {
   return row;
 }
 
+function renderDocumentText(container, documentText) {
+  container.textContent = "";
+  for (const line of documentText.split("\n")) {
+    const headingMatch = line.match(/^(#{1,6})\s+(.*)$/);
+    if (headingMatch) {
+      container.appendChild(createElement("span", `doc-heading level-${headingMatch[1].length}`, headingMatch[2]));
+    } else {
+      container.appendChild(document.createTextNode(`${line}\n`));
+    }
+  }
+}
+
 async function openDocument(documentId) {
   const response = await fetch(`/api/documents/${documentId}`);
   if (redirectIfLoggedOut(response)) return;
@@ -127,7 +139,7 @@ async function openDocument(documentId) {
   projectBadge.hidden = false;
   projectBadge.textContent = documentData.project === "GENERAL" ? "General" : `Project ${documentData.project}`;
   projectBadge.className = `badge project-${documentData.project}`;
-  document.getElementById("drawer-content").textContent = documentData.content;
+  renderDocumentText(document.getElementById("drawer-content"), documentData.content);
   drawer.classList.add("open");
 }
 
@@ -171,6 +183,13 @@ function showAnswer(answerMessage) {
   }
   const isNoAnswer = answerMessage.content.trim() === NO_ANSWER_TEXT;
   body.appendChild(createElement("div", isNoAnswer ? "answer no-answer" : "answer", answerMessage.content));
+  if (isNoAnswer) {
+    body.appendChild(createElement(
+      "p",
+      "no-answer-hint",
+      "The documents you can access don't cover this. Try rephrasing, or ask the team that owns the topic.",
+    ));
+  }
   if (answerMessage.sources.length) {
     const sources = createElement("div", "sources");
     for (const source of answerMessage.sources) {
