@@ -1,0 +1,34 @@
+CONTOSO ENGINEERING CONSULTANTS - SITE HEALTH AND SAFETY RULES
+
+Project / visibility tag: GENERAL (all employees)
+Document owner: Head of Health & Safety, Carlos Mota (safety@contoso.example)
+Reference: HS-POL-001 | Revision: C07
+
+1. BEFORE A SITE VISIT
+- Every employee must complete the Contoso online site safety induction before their first site visit. It is valid for 2 years.
+- Book every site visit in the SafeSite app at least 48 hours in advance, with the site name, the purpose of the visit and the expected return time.
+- Read the contractor's site rules and attend the contractor's site induction on arrival. Their rules apply in addition to ours.
+
+2. PERSONAL PROTECTIVE EQUIPMENT (PPE)
+Minimum PPE on any construction site:
+- safety helmet with chin strap
+- high-visibility vest or jacket (class 2 or higher)
+- safety boots with toe cap and midsole protection
+- safety glasses
+- gloves
+Additional PPE for tunnels and shafts: ear defenders, a self-rescuer and a personal gas detector, provided by the site.
+PPE is ordered through the office manager and paid for by the company. Do not visit a site without it.
+
+3. LONE WORKING
+- Nobody visits a site alone without a check-in arrangement. Check in on the SafeSite app on arrival and check out when you leave.
+- If you have not checked out 1 hour after your expected return time, the duty safety coordinator will call you, and then your emergency contact.
+
+4. STOP WORK AUTHORITY
+Every Contoso employee has the authority and the duty to stop any work they believe is unsafe. Nobody will be criticised for stopping work in good faith.
+
+5. INCIDENTS AND NEAR MISSES
+- Report every accident, injury or near miss in the SafeSite app within 24 hours.
+- Serious incidents (hospital treatment, collapse, fire) must be reported by phone immediately to the 24-hour safety line: +351 210 000 199.
+
+6. FITNESS FOR WORK
+Alcohol and drugs are strictly forbidden on site. Employees taking medication that may affect alertness must tell their line manager before a site visit.

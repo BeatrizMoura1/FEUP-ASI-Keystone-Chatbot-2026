@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48">
+  <defs>
+    <linearGradient id="keystone-bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#2563eb"/>
+    </linearGradient>
+    <mask id="keystone-joints">
+      <rect width="48" height="48" fill="#fff"/>
+      <g stroke="#000" stroke-width="1.5">
+        <path d="M19.4 9.2h9.2l-2.2 9.8h-4.8z" fill="#000" stroke-linejoin="round" stroke-width="2.6"/>
+        <path d="M19.5 20.1 14.7 14.4M28.5 20.1l4.8-5.7"/>
+        <path d="M17.3 23.4 10.2 21M30.7 23.4l7.1-2.4"/>
+        <path d="M9 27.2h8.6M30.4 27.2H39"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="48" height="48" fill="url(#keystone-bg)"/>
+  <path mask="url(#keystone-joints)" fill="#fff" d="M9.5 38.5V25.5a14.5 14.5 0 0 1 29 0v13h-7.6V26a6.9 6.9 0 0 0-13.8 0v12.5z"/>
+  <path fill="#fbbf24" d="M19.4 9.2h9.2l-2.2 9.8h-4.8z"/>
+</svg>

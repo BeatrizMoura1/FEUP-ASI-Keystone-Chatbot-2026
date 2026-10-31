@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keystone – Admin</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img class="logo" src="/static/logo.svg" alt=""><span class="brand-text">Keystone<small>Admin</small></span></a>
+    <a class="nav-link" href="/">← Back to chat</a>
+  </header>
+  <div class="admin">
+    <h2>Documents</h2>
+    <p class="subtitle">Upload, assign and remove the documents the assistant answers from.</p>
+
+    <section class="panel-card">
+      <h3>Upload a document</h3>
+      <form class="upload-form" id="upload-form">
+        <label class="field">File (.txt, .md, .pdf) <input type="file" id="file-input" accept=".txt,.md,.pdf" required></label>
+        <label class="field">Project <select id="project-select"></select></label>
+        <button class="primary-button" id="upload-button">Upload</button>
+      </form>
+      <p class="upload-status" id="upload-status"></p>
+    </section>
+
+    <section class="panel-card">
+      <table class="doc-table">
+        <thead><tr><th>Name</th><th>Project</th><th>Characters</th><th></th></tr></thead>
+        <tbody id="document-rows"></tbody>
+      </table>
+    </section>
+  </div>
+  <script>
+    const documentRows = document.getElementById("document-rows");
+    const projectSelect = document.getElementById("project-select");
+    const uploadStatus = document.getElementById("upload-status");
+
+    function setStatus(message, statusType) {
+      uploadStatus.textContent = message;
+      uploadStatus.className = `upload-status ${statusType || ""}`;
+    }
+
+    async function loadDocuments() {
+      const response = await fetch("/api/admin/documents");
+      if (!response.ok) { window.location.href = "/"; return; }
+      const { documents, projects } = await response.json();
+      if (!projectSelect.options.length) {
+        for (const project of projects) projectSelect.add(new Option(project === "GENERAL" ? "General (everyone)" : `Project ${project}`, project));
+      }
+      documentRows.innerHTML = "";
+      if (!documents.length) {
+        documentRows.innerHTML = '<tr class="empty-row"><td colspan="4">No documents yet.</td></tr>';
+      }
+      for (const documentInfo of documents) {
+        const row = documentRows.insertRow();
+        const nameCell = row.insertCell();
+        nameCell.className = "doc-name";
+        nameCell.textContent = documentInfo.name;
+        const projectBadge = document.createElement("span");
+        projectBadge.className = `badge project-${documentInfo.project}`;
+        projectBadge.textContent = documentInfo.project === "GENERAL" ? "General" : `Project ${documentInfo.project}`;
+        row.insertCell().appendChild(projectBadge);
+        const sizeCell = row.insertCell();
+        sizeCell.className = "num";
+        sizeCell.textContent = documentInfo.num_chars.toLocaleString();
+        const actionsCell = row.insertCell();
+        actionsCell.className = "row-actions";
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "danger-button";
+        deleteButton.textContent = "Delete";
+        deleteButton.onclick = async () => {
+          if (!confirm(`Delete "${documentInfo.name}"?`)) return;
+          const deleteResponse = await fetch(`/api/admin/documents/${documentInfo.id}`, { method: "DELETE" });
+          setStatus(deleteResponse.ok ? `Deleted "${documentInfo.name}".` : "Delete failed.", deleteResponse.ok ? "success" : "error");
+          loadDocuments();
+        };
+        actionsCell.appendChild(deleteButton);
+      }
+    }
+
+    document.getElementById("upload-form").onsubmit = async (submitEvent) => {
+      submitEvent.preventDefault();
+      const uploadButton = document.getElementById("upload-button");
+      const formData = new FormData();
+      formData.append("file", document.getElementById("file-input").files[0]);
+      formData.append("project", projectSelect.value);
+      uploadButton.disabled = true;
+      setStatus("Uploading…");
+      const response = await fetch("/api/admin/documents", { method: "POST", body: formData });
+      const responseData = await response.json();
+      if (response.ok) setStatus(`Uploaded "${responseData.name}" to ${responseData.project}.`, "success");
+      else setStatus(`Error: ${responseData.detail}`, "error");
+      uploadButton.disabled = false;
+      document.getElementById("file-input").value = "";
+      loadDocuments();
+    };
+
+    loadDocuments();
+  </script>
+</body>
+</html>

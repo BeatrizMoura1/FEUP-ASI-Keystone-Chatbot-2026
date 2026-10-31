@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Keystone – Log in</title>
+  <link rel="icon" href="/static/logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="auth-page">
+    <form class="auth-card" id="login-form">
+      <img class="logo" src="/static/logo.svg" alt="">
+      <h1>Welcome back</h1>
+      <p class="subtitle">Log in to Keystone, the Contoso knowledge assistant</p>
+      <label class="field">Username <input id="username-input" autocomplete="username" required autofocus></label>
+      <label class="field">Password <input id="password-input" type="password" autocomplete="current-password" required></label>
+      <button class="primary-button" id="login-button">Log in</button>
+      <p class="form-error" id="login-error" role="alert"></p>
+    </form>
+  </div>
+  <script>
+    document.getElementById("login-form").onsubmit = async (submitEvent) => {
+      submitEvent.preventDefault();
+      const loginButton = document.getElementById("login-button");
+      const loginError = document.getElementById("login-error");
+      loginButton.disabled = true;
+      loginError.textContent = "";
+      const response = await fetch("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username: document.getElementById("username-input").value,
+          password: document.getElementById("password-input").value,
+        }),
+      });
+      if (response.ok) { window.location.href = "/"; return; }
+      loginError.textContent = "Wrong username or password.";
+      loginButton.disabled = false;
+    };
+  </script>
+</body>
+</html>
