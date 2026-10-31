@@ -4,7 +4,7 @@ from pathlib import Path
 import psycopg
 
 from app.config import PROJECTS, settings
-from app.db import hash_password
+from app.auth import hash_password
 from app.documents import SUPPORTED_EXTENSIONS, detect_project, document_name_from_filename, extract_text
 
 logger = logging.getLogger("knowledge_finder")

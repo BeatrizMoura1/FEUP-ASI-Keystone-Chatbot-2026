@@ -15,8 +15,6 @@ from app.conversations import (
     get_conversation,
     get_recent_history,
     list_conversations,
-    list_ratings,
-    rate_message,
     save_exchange,
     user_owns_conversation,
 )
@@ -30,6 +28,7 @@ from app.documents import (
     list_project_codes,
 )
 from app.llm import LLMError, RateLimitError
+from app.ratings import list_ratings, rate_message
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("knowledge_finder")
