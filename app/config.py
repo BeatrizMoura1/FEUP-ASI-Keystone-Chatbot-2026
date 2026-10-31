@@ -29,7 +29,7 @@ class Settings(BaseSettings):
         description="How many earlier messages of the chat are sent with each question (0 disables follow-ups).",
     )
 
-    docs_dir: str = Field(default=".docs", alias="DOCS_DIR")
+    docs_dir: str = Field(default="sample_documents", alias="DOCS_DIR")
     database_url: str = Field(
         default="postgresql://localhost/keystone",
         alias="DATABASE_URL",

@@ -8,7 +8,7 @@ replies "No answer found."
 ## How it works
 
 1. `python -m db.reset` creates the PostgreSQL tables (`db/schema.sql`) and loads every `.txt` / `.md` / `.pdf`
-   in `.docs/`. The project is read from the `Project / visibility tag:` line (GENERAL, A or B).
+   in `sample_documents/`. The project is read from the `Project / visibility tag:` line (GENERAL, A or B).
 2. When a user asks a question, the documents they may see are selected **in the SQL query**
    (`documents JOIN user_projects`, deleted documents excluded). Admins see all documents.
 3. The full text of those documents and the question go into one prompt (no embeddings or vector database).
@@ -56,7 +56,7 @@ db/
   reset.py       recreates the tables and seeds projects, test accounts and sample documents
 static/          plain HTML/CSS/JS (chat, login, admin)
 tests/           pytest tests on a local PostgreSQL test database (no real LLM calls)
-.docs/           seed documents (the document name is the file name with underscores as spaces)
+sample_documents/  the 7 sample documents (the document name is the file name with underscores as spaces)
 ```
 
 ## Setup
@@ -99,7 +99,7 @@ Open http://localhost:8000.
 | `newhire`  | `NEWHIRE_PASSWORD`   | GENERAL documents only        |
 | `admin`    | `ADMIN_PASSWORD`     | everything + `/admin` page    |
 
-To reset the database (delete all chats, ratings and uploads, and reload the documents from `.docs/`), run
+To reset the database (delete all chats, ratings and uploads, and reload the documents from `sample_documents/`), run
 `python -m db.reset`.
 
 ## Deploy (Render + Neon)

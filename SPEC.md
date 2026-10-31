@@ -162,7 +162,7 @@ db/
 static/             HTML/CSS/JS screens (login, chat, admin)
 tests/              pytest, fake LLM, local PostgreSQL test database
 docs/               manual test checklist, UX review, screenshots, demo script
-.docs/              the 7 sample documents
+sample_documents/   the 7 sample documents
 SPEC.md             this file
 CLAUDE.md           project rules for the LLM agent
 README.md           setup, run, test, deploy
