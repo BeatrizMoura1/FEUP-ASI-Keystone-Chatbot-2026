@@ -32,6 +32,17 @@
         <tbody id="document-rows"></tbody>
       </table>
     </section>
+
+    <h2 class="section-heading">Answer ratings</h2>
+    <p class="subtitle">Thumbs up and down from employees, newest first. "Not helpful" answers point to missing or outdated documents.</p>
+
+    <section class="panel-card">
+      <p class="rating-summary" id="rating-summary"></p>
+      <table class="doc-table rating-table">
+        <thead><tr><th>Rating</th><th>Question</th><th>Answer</th><th>User</th><th>Date</th></tr></thead>
+        <tbody id="rating-rows"></tbody>
+      </table>
+    </section>
   </div>
   <script>
     const documentRows = document.getElementById("document-rows");
@@ -81,6 +92,53 @@
       }
     }
 
+    const ratingRows = document.getElementById("rating-rows");
+    const ratingSummary = document.getElementById("rating-summary");
+    const RATING_DATE_FORMAT = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
+
+    function addTextCell(row, text, className) {
+      const cell = row.insertCell();
+      if (className) cell.className = className;
+      const textBlock = document.createElement("div");
+      textBlock.className = "clamp";
+      textBlock.textContent = text;
+      cell.appendChild(textBlock);
+      return cell;
+    }
+
+    async function loadRatings() {
+      const response = await fetch("/api/admin/ratings");
+      if (!response.ok) { ratingSummary.textContent = "Could not load the ratings."; return; }
+      const ratings = await response.json();
+      const numHelpful = ratings.filter((rating) => rating.is_positive).length;
+      ratingSummary.textContent = ratings.length
+        ? `${ratings.length} ratings · ${numHelpful} helpful · ${ratings.length - numHelpful} not helpful`
+        : "";
+      ratingRows.innerHTML = "";
+      if (!ratings.length) {
+        ratingRows.innerHTML = '<tr class="empty-row"><td colspan="5">No ratings yet. They appear here when employees rate an answer.</td></tr>';
+      }
+      for (const rating of ratings) {
+        const row = ratingRows.insertRow();
+        const ratingBadge = document.createElement("span");
+        ratingBadge.className = `badge ${rating.is_positive ? "rating-positive" : "rating-negative"}`;
+        ratingBadge.textContent = rating.is_positive ? "👍 Helpful" : "👎 Not helpful";
+        row.insertCell().appendChild(ratingBadge);
+        const questionCell = addTextCell(row, rating.question, "doc-name");
+        if (rating.is_chat_deleted) {
+          const deletedNote = document.createElement("small");
+          deletedNote.className = "muted-note";
+          deletedNote.textContent = "Chat deleted by the user";
+          questionCell.appendChild(deletedNote);
+        }
+        addTextCell(row, rating.answer);
+        row.insertCell().textContent = rating.username;
+        const dateCell = row.insertCell();
+        dateCell.className = "num";
+        dateCell.textContent = RATING_DATE_FORMAT.format(new Date(rating.created_at));
+      }
+    }
+
     document.getElementById("upload-form").onsubmit = async (submitEvent) => {
       submitEvent.preventDefault();
       const uploadButton = document.getElementById("upload-button");
@@ -99,6 +157,7 @@
     };
 
     loadDocuments();
+    loadRatings();
   </script>
 </body>
 </html>

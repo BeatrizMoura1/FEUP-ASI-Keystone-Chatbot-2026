@@ -329,3 +329,19 @@ def rate_message(user: dict, message_id: int, is_positive: bool) -> bool:
             (user["id"], answer_row["question"] or "", answer_row["answer"], is_positive, message_id),
         )
     return True
+
+
+def list_ratings() -> list[dict]:
+    """List every rating for the admin, newest first, including ratings whose chat was deleted.
+
+    Returns
+    -------
+    list of dict
+        [{"id", "is_positive", "question", "answer", "username", "created_at", "is_chat_deleted"}].
+    """
+    with get_connection() as connection:
+        return connection.execute(
+            "SELECT r.id, r.is_positive, r.question, r.answer, u.username, r.created_at, "
+            "r.message_id IS NULL AS is_chat_deleted "
+            "FROM ratings r JOIN users u ON u.id = r.user_id ORDER BY r.created_at DESC, r.id DESC"
+        ).fetchall()

@@ -13,6 +13,7 @@ from app.conversations import (
     get_conversation,
     get_recent_history,
     list_conversations,
+    list_ratings,
     rate_message,
     save_exchange,
     user_owns_conversation,
@@ -406,6 +407,23 @@ async def upload_document(
         raise HTTPException(status_code=400, detail=str(error)) from error
     logger.info("Admin '%s' uploaded '%s' to project %s.", admin_user["username"], document_name, project)
     return {"id": document_id, "name": document_name, "project": project}
+
+
+@app.get("/api/admin/ratings")
+def ratings_list(admin_user: dict = Depends(require_admin)) -> list[dict]:
+    """List every answer rating, newest first, for the admin ratings view.
+
+    Parameters
+    ----------
+    admin_user : dict
+        The logged-in admin.
+
+    Returns
+    -------
+    list of dict
+        [{"id", "is_positive", "question", "answer", "username", "created_at", "is_chat_deleted"}].
+    """
+    return list_ratings()
 
 
 @app.delete("/api/admin/documents/{document_id}")
