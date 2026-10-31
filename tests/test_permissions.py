@@ -68,7 +68,7 @@ def test_employee_cannot_open_project_b_document(client):
     login_as(client, "employee", "employee123")
     with get_connection() as connection:
         beta_document_id = connection.execute(
-            "SELECT id FROM documents WHERE name = ?", (BETA_DOCUMENT_NAME,)
+            "SELECT id FROM documents WHERE name = %s", (BETA_DOCUMENT_NAME,)
         ).fetchone()["id"]
 
     assert client.get(f"/api/documents/{beta_document_id}").status_code == 404

@@ -1,15 +1,11 @@
 import io
-import logging
 import re
-import sqlite3
 from pathlib import Path
 
 from pypdf import PdfReader
 
-from app.config import PROJECTS, settings
+from app.config import PROJECTS
 from app.db import get_connection
-
-logger = logging.getLogger("knowledge_finder")
 
 SUPPORTED_EXTENSIONS = {".txt", ".md", ".pdf"}
 PROJECT_TAG_PATTERN = re.compile(r"visibility tag:\s*(?:PROJECT\s+)?(GENERAL|[A-Z])\b", re.IGNORECASE)
@@ -82,17 +78,34 @@ def detect_project(document_text: str) -> str:
     return detected_project if detected_project in PROJECTS else "GENERAL"
 
 
-def add_document(name: str, project: str, content: str) -> int:
-    """Insert a document, or replace the one with the same name.
+DOCUMENT_COLUMNS = "d.id, d.name, p.code AS project, d.content"
+
+
+def list_project_codes() -> list[str]:
+    """List the codes of the projects a document can be assigned to.
+
+    Returns
+    -------
+    list of str
+        Project codes in creation order (GENERAL first, so it is the upload default).
+    """
+    with get_connection() as connection:
+        return [row["code"] for row in connection.execute("SELECT code FROM projects ORDER BY id")]
+
+
+def add_document(name: str, project: str, content: str, uploaded_by: int | None = None) -> int:
+    """Insert a document, or replace the text and project of the active document with the same name.
 
     Parameters
     ----------
     name : str
         Document name shown to users and used in citations.
     project : str
-        Project the document belongs to.
+        Code of the project the document belongs to.
     content : str
         Full document text.
+    uploaded_by : int, optional
+        Id of the admin who uploaded it.
 
     Returns
     -------
@@ -104,97 +117,78 @@ def add_document(name: str, project: str, content: str) -> int:
     ValueError
         If the project is unknown.
     """
-    if project not in PROJECTS:
-        raise ValueError(f"Unknown project '{project}'. Choose one of {PROJECTS}.")
     with get_connection() as connection:
-        cursor = connection.execute(
-            "INSERT INTO documents (name, project, content) VALUES (?, ?, ?) "
-            "ON CONFLICT(name) DO UPDATE SET project = excluded.project, content = excluded.content "
+        project_row = connection.execute("SELECT id FROM projects WHERE code = %s", (project,)).fetchone()
+        if project_row is None:
+            raise ValueError(f"Unknown project '{project}'. Choose one of {list_project_codes()}.")
+        return connection.execute(
+            "INSERT INTO documents (name, content, project_id, uploaded_by) VALUES (%s, %s, %s, %s) "
+            "ON CONFLICT (name) WHERE deleted_at IS NULL "
+            "DO UPDATE SET content = excluded.content, project_id = excluded.project_id, "
+            "uploaded_by = excluded.uploaded_by "
             "RETURNING id",
-            (name, project, content),
-        )
-        return cursor.fetchone()["id"]
+            (name, content, project_row["id"], uploaded_by),
+        ).fetchone()["id"]
 
 
-def seed_documents() -> int:
-    """Load every supported file in DOCS_DIR into the database (only when it holds no documents yet).
-
-    Returns
-    -------
-    int
-        Number of documents loaded.
-    """
-    with get_connection() as connection:
-        if connection.execute("SELECT COUNT(*) FROM documents").fetchone()[0] > 0:
-            return 0
-    docs_folder = Path(settings.docs_dir)
-    if not docs_folder.is_dir():
-        logger.warning("Docs folder '%s' not found, no documents seeded.", docs_folder)
-        return 0
-    num_loaded = 0
-    for document_path in sorted(docs_folder.iterdir()):
-        if document_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
-            continue
-        try:
-            document_text = extract_text(document_path.name, document_path.read_bytes())
-        except Exception as error:
-            logger.error("Failed to load '%s': %s", document_path, error)
-            raise
-        add_document(document_name_from_filename(document_path.name), detect_project(document_text), document_text)
-        num_loaded += 1
-    logger.info("Seeded %d documents from '%s'.", num_loaded, docs_folder)
-    return num_loaded
-
-
-def get_allowed_documents(user: sqlite3.Row) -> list[sqlite3.Row]:
+def get_allowed_documents(user: dict) -> list[dict]:
     """Fetch only the documents the user may see; the permission filter is part of the SQL query.
+
+    Deleted documents are never returned.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         Row from the users table (needs `id` and `role`).
 
     Returns
     -------
-    list of sqlite3.Row
+    list of dict
         Documents with id, name, project and content.
     """
     with get_connection() as connection:
         if user["role"] == "admin":
-            return connection.execute("SELECT id, name, project, content FROM documents ORDER BY name").fetchall()
+            return connection.execute(
+                f"SELECT {DOCUMENT_COLUMNS} FROM documents d JOIN projects p ON p.id = d.project_id "
+                "WHERE d.deleted_at IS NULL ORDER BY d.name"
+            ).fetchall()
         return connection.execute(
-            "SELECT d.id, d.name, d.project, d.content FROM documents d "
-            "JOIN user_projects up ON up.project = d.project "
-            "WHERE up.user_id = ? ORDER BY d.name",
+            f"SELECT {DOCUMENT_COLUMNS} FROM documents d JOIN projects p ON p.id = d.project_id "
+            "JOIN user_projects up ON up.project_id = d.project_id "
+            "WHERE up.user_id = %s AND d.deleted_at IS NULL ORDER BY d.name",
             (user["id"],),
         ).fetchall()
 
 
-def get_allowed_document_ids(user: sqlite3.Row) -> set[int]:
+def get_allowed_document_ids(user: dict) -> set[int]:
     """Fetch the ids of the documents the user may see (same SQL permission filter, without the text).
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         Row from the users table (needs `id` and `role`).
 
     Returns
     -------
     set of int
-        Ids of the visible documents.
+        Ids of the visible, non-deleted documents.
     """
     with get_connection() as connection:
         if user["role"] == "admin":
-            id_rows = connection.execute("SELECT id FROM documents").fetchall()
+            id_rows = connection.execute("SELECT id FROM documents WHERE deleted_at IS NULL").fetchall()
         else:
             id_rows = connection.execute(
-                "SELECT d.id FROM documents d JOIN user_projects up ON up.project = d.project WHERE up.user_id = ?",
+                "SELECT d.id FROM documents d JOIN user_projects up ON up.project_id = d.project_id "
+                "WHERE up.user_id = %s AND d.deleted_at IS NULL",
                 (user["id"],),
             ).fetchall()
     return {id_row["id"] for id_row in id_rows}
 
+
 def delete_document(document_id: int) -> bool:
-    """Delete a document by id.
+    """Mark a document as deleted, so it is never sent to the LLM or shown again.
+
+    The row is kept so that saved answers citing it keep valid keys (and are then hidden).
 
     Parameters
     ----------
@@ -204,35 +198,39 @@ def delete_document(document_id: int) -> bool:
     Returns
     -------
     bool
-        True if a document was deleted.
+        True if an active document was deleted.
     """
     with get_connection() as connection:
-        return connection.execute("DELETE FROM documents WHERE id = ?", (document_id,)).rowcount > 0
+        return connection.execute(
+            "UPDATE documents SET deleted_at = now() WHERE id = %s AND deleted_at IS NULL", (document_id,)
+        ).rowcount > 0
 
 
-def get_allowed_document(user: sqlite3.Row, document_id: int) -> sqlite3.Row | None:
+def get_allowed_document(user: dict, document_id: int) -> dict | None:
     """Fetch one document by id, only if the user may see it (permission filter in the SQL query).
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         Row from the users table (needs `id` and `role`).
     document_id : int
         Id of the requested document.
 
     Returns
     -------
-    sqlite3.Row or None
-        The document, or None if it does not exist or the user may not see it.
+    dict or None
+        The document, or None if it does not exist, was deleted or the user may not see it.
     """
     with get_connection() as connection:
         if user["role"] == "admin":
             return connection.execute(
-                "SELECT id, name, project, content FROM documents WHERE id = ?", (document_id,)
+                f"SELECT {DOCUMENT_COLUMNS} FROM documents d JOIN projects p ON p.id = d.project_id "
+                "WHERE d.id = %s AND d.deleted_at IS NULL",
+                (document_id,),
             ).fetchone()
         return connection.execute(
-            "SELECT d.id, d.name, d.project, d.content FROM documents d "
-            "JOIN user_projects up ON up.project = d.project "
-            "WHERE up.user_id = ? AND d.id = ?",
+            f"SELECT {DOCUMENT_COLUMNS} FROM documents d JOIN projects p ON p.id = d.project_id "
+            "JOIN user_projects up ON up.project_id = d.project_id "
+            "WHERE up.user_id = %s AND d.id = %s AND d.deleted_at IS NULL",
             (user["id"], document_id),
         ).fetchone()

@@ -1,6 +1,3 @@
-import json
-import sqlite3
-
 from app.config import NO_ANSWER_TEXT
 from app.db import get_connection
 from app.documents import get_allowed_document_ids
@@ -63,12 +60,12 @@ def is_answer_visible(
     return set(context_document_ids) <= allowed_document_ids
 
 
-def list_conversations(user: sqlite3.Row) -> list[dict]:
+def list_conversations(user: dict) -> list[dict]:
     """List the user's conversations, most recently active first.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -78,18 +75,18 @@ def list_conversations(user: sqlite3.Row) -> list[dict]:
     """
     with get_connection() as connection:
         conversation_rows = connection.execute(
-            "SELECT id, title, updated_at FROM conversations WHERE user_id = ? ORDER BY updated_at DESC, id DESC",
+            "SELECT id, title, updated_at FROM conversations WHERE user_id = %s ORDER BY updated_at DESC, id DESC",
             (user["id"],),
         ).fetchall()
     return [dict(conversation_row) for conversation_row in conversation_rows]
 
 
-def user_owns_conversation(user: sqlite3.Row, conversation_id: int) -> bool:
+def user_owns_conversation(user: dict, conversation_id: int) -> bool:
     """Check that a conversation exists and belongs to the user.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     conversation_id : int
         Conversation to check.
@@ -101,18 +98,18 @@ def user_owns_conversation(user: sqlite3.Row, conversation_id: int) -> bool:
     """
     with get_connection() as connection:
         return connection.execute(
-            "SELECT 1 FROM conversations WHERE id = ? AND user_id = ?", (conversation_id, user["id"])
+            "SELECT 1 FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user["id"])
         ).fetchone() is not None
 
 
-def get_conversation(user: sqlite3.Row, conversation_id: int) -> dict | None:
+def get_conversation(user: dict, conversation_id: int) -> dict | None:
     """Fetch one of the user's conversations with its messages, hiding answers the user may no longer see.
 
     Hidden answers are replaced on the server, so their text never reaches the browser.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     conversation_id : int
         Conversation to fetch.
@@ -126,24 +123,42 @@ def get_conversation(user: sqlite3.Row, conversation_id: int) -> dict | None:
     """
     with get_connection() as connection:
         conversation_row = connection.execute(
-            "SELECT id, title FROM conversations WHERE id = ? AND user_id = ?", (conversation_id, user["id"])
+            "SELECT id, title FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user["id"])
         ).fetchone()
         if conversation_row is None:
             return None
         message_rows = connection.execute(
-            "SELECT m.id, m.role, m.content, m.sources_json, m.context_document_ids_json, r.is_positive "
+            "SELECT m.id, m.role, m.content, r.is_positive "
             "FROM messages m LEFT JOIN ratings r ON r.message_id = m.id "
-            "WHERE m.conversation_id = ? ORDER BY m.id",
+            "WHERE m.conversation_id = %s ORDER BY m.id",
             (conversation_id,),
         ).fetchall()
+        message_ids = [message_row["id"] for message_row in message_rows]
+        source_rows = connection.execute(
+            "SELECT ms.message_id, d.id, d.name FROM message_sources ms JOIN documents d ON d.id = ms.document_id "
+            "WHERE ms.message_id = ANY(%s) ORDER BY d.name",
+            (message_ids,),
+        ).fetchall()
+        context_rows = connection.execute(
+            "SELECT message_id, document_id FROM message_context_documents WHERE message_id = ANY(%s)",
+            (message_ids,),
+        ).fetchall()
+    sources_by_message_id = {}
+    for source_row in source_rows:
+        sources_by_message_id.setdefault(source_row["message_id"], []).append(
+            {"id": source_row["id"], "name": source_row["name"]}
+        )
+    context_document_ids_by_message_id = {}
+    for context_row in context_rows:
+        context_document_ids_by_message_id.setdefault(context_row["message_id"], []).append(context_row["document_id"])
     allowed_document_ids = get_allowed_document_ids(user)
     conversation_messages = []
     for message_row in message_rows:
-        message_sources = json.loads(message_row["sources_json"])
+        message_sources = sources_by_message_id.get(message_row["id"], [])
         is_hidden = message_row["role"] == "assistant" and not is_answer_visible(
             message_row["content"],
             [source["id"] for source in message_sources],
-            json.loads(message_row["context_document_ids_json"]),
+            context_document_ids_by_message_id.get(message_row["id"], []),
             allowed_document_ids,
         )
         conversation_messages.append(
@@ -159,7 +174,7 @@ def get_conversation(user: sqlite3.Row, conversation_id: int) -> dict | None:
     return {"id": conversation_row["id"], "title": conversation_row["title"], "messages": conversation_messages}
 
 
-def get_recent_history(user: sqlite3.Row, conversation_id: int, max_messages: int) -> list[dict]:
+def get_recent_history(user: dict, conversation_id: int, max_messages: int) -> list[dict]:
     """Return the last messages of a conversation to give the model context for a follow-up question.
 
     Answers the user may no longer see are left out, so revoked or deleted documents never reach the prompt
@@ -167,7 +182,7 @@ def get_recent_history(user: sqlite3.Row, conversation_id: int, max_messages: in
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     conversation_id : int
         Conversation the new question belongs to.
@@ -191,7 +206,7 @@ def get_recent_history(user: sqlite3.Row, conversation_id: int, max_messages: in
 
 
 def save_exchange(
-    user: sqlite3.Row,
+    user: dict,
     conversation_id: int | None,
     question: str,
     answer: str,
@@ -202,7 +217,7 @@ def save_exchange(
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     conversation_id : int or None
         Existing conversation (must belong to the user), or None to start a new one titled after the question.
@@ -229,35 +244,42 @@ def save_exchange(
         if conversation_id is None:
             conversation_title = make_title(question)
             conversation_id = connection.execute(
-                "INSERT INTO conversations (user_id, title) VALUES (?, ?)", (user["id"], conversation_title)
-            ).lastrowid
+                "INSERT INTO conversations (user_id, title) VALUES (%s, %s) RETURNING id",
+                (user["id"], conversation_title),
+            ).fetchone()["id"]
         else:
             conversation_row = connection.execute(
-                "SELECT title FROM conversations WHERE id = ? AND user_id = ?", (conversation_id, user["id"])
+                "SELECT title FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user["id"])
             ).fetchone()
             if conversation_row is None:
                 raise ValueError(f"Conversation {conversation_id} not found for user '{user['username']}'")
             conversation_title = conversation_row["title"]
-            connection.execute(
-                "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (conversation_id,)
-            )
+            connection.execute("UPDATE conversations SET updated_at = now() WHERE id = %s", (conversation_id,))
         connection.execute(
-            "INSERT INTO messages (conversation_id, role, content) VALUES (?, 'user', ?)", (conversation_id, question)
+            "INSERT INTO messages (conversation_id, role, content) VALUES (%s, 'user', %s)", (conversation_id, question)
         )
         answer_message_id = connection.execute(
-            "INSERT INTO messages (conversation_id, role, content, sources_json, context_document_ids_json) "
-            "VALUES (?, 'assistant', ?, ?, ?)",
-            (conversation_id, answer, json.dumps(sources), json.dumps(context_document_ids)),
-        ).lastrowid
+            "INSERT INTO messages (conversation_id, role, content) VALUES (%s, 'assistant', %s) RETURNING id",
+            (conversation_id, answer),
+        ).fetchone()["id"]
+        with connection.cursor() as cursor:
+            cursor.executemany(
+                "INSERT INTO message_sources (message_id, document_id) VALUES (%s, %s)",
+                [(answer_message_id, source["id"]) for source in sources],
+            )
+            cursor.executemany(
+                "INSERT INTO message_context_documents (message_id, document_id) VALUES (%s, %s)",
+                [(answer_message_id, document_id) for document_id in context_document_ids],
+            )
     return {"conversation_id": conversation_id, "title": conversation_title, "message_id": answer_message_id}
 
 
-def delete_conversation(user: sqlite3.Row, conversation_id: int) -> bool:
+def delete_conversation(user: dict, conversation_id: int) -> bool:
     """Delete one of the user's conversations and its messages (ratings are kept, unlinked).
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     conversation_id : int
         Conversation to delete.
@@ -269,16 +291,16 @@ def delete_conversation(user: sqlite3.Row, conversation_id: int) -> bool:
     """
     with get_connection() as connection:
         return connection.execute(
-            "DELETE FROM conversations WHERE id = ? AND user_id = ?", (conversation_id, user["id"])
+            "DELETE FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user["id"])
         ).rowcount > 0
 
 
-def rate_message(user: sqlite3.Row, message_id: int, is_positive: bool) -> bool:
+def rate_message(user: dict, message_id: int, is_positive: bool) -> bool:
     """Store (or change) the user's thumbs up / down for one of their assistant answers.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     message_id : int
         The assistant message being rated.
@@ -296,15 +318,14 @@ def rate_message(user: sqlite3.Row, message_id: int, is_positive: bool) -> bool:
             "(SELECT q.content FROM messages q WHERE q.conversation_id = m.conversation_id AND q.id < m.id "
             " AND q.role = 'user' ORDER BY q.id DESC LIMIT 1) AS question "
             "FROM messages m JOIN conversations c ON c.id = m.conversation_id "
-            "WHERE m.id = ? AND m.role = 'assistant' AND c.user_id = ?",
+            "WHERE m.id = %s AND m.role = 'assistant' AND c.user_id = %s",
             (message_id, user["id"]),
         ).fetchone()
         if answer_row is None:
             return False
         connection.execute(
-            "INSERT INTO ratings (user_id, question, answer, is_positive, message_id) VALUES (?, ?, ?, ?, ?) "
-            "ON CONFLICT (message_id) WHERE message_id IS NOT NULL "
-            "DO UPDATE SET is_positive = excluded.is_positive, created_at = CURRENT_TIMESTAMP",
-            (user["id"], answer_row["question"] or "", answer_row["answer"], int(is_positive), message_id),
+            "INSERT INTO ratings (user_id, question, answer, is_positive, message_id) VALUES (%s, %s, %s, %s, %s) "
+            "ON CONFLICT (message_id) DO UPDATE SET is_positive = excluded.is_positive, created_at = now()",
+            (user["id"], answer_row["question"] or "", answer_row["answer"], is_positive, message_id),
         )
     return True

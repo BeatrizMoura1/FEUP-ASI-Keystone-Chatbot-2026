@@ -97,7 +97,7 @@ def test_delete_conversation_removes_its_messages(client, fake_llm):
     assert client.get("/api/conversations").json() == []
     assert client.get(f"/api/conversations/{conversation_id}").status_code == 404
     with get_connection() as connection:
-        assert connection.execute("SELECT COUNT(*) FROM messages").fetchone()[0] == 0
+        assert connection.execute("SELECT count(*) FROM messages").fetchone()["count"] == 0
 
 
 def test_rating_is_stored_and_shown_in_history(client, fake_llm):
@@ -109,7 +109,7 @@ def test_rating_is_stored_and_shown_in_history(client, fake_llm):
 
     with get_connection() as connection:
         stored_ratings = connection.execute("SELECT question, answer, is_positive FROM ratings").fetchall()
-    assert [tuple(rating) for rating in stored_ratings] == [("Rate this", "Answer number 1", 0)]
+    assert [tuple(rating.values()) for rating in stored_ratings] == [("Rate this", "Answer number 1", False)]
     conversation = client.get(f"/api/conversations/{answer['conversation_id']}").json()
     assert conversation["messages"][1]["rating"] is False
 

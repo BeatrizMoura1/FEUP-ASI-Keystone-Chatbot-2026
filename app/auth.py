@@ -1,15 +1,16 @@
 import secrets
-import sqlite3
+from datetime import timedelta
 
 from fastapi import Depends, HTTPException, Request
 
 from app.db import get_connection, verify_password
 
 SESSION_COOKIE_NAME = "kf_session"
+SESSION_LIFETIME = timedelta(days=7)
 
 
 def login(username: str, password: str) -> str | None:
-    """Check credentials and create a session.
+    """Check credentials and create a session that expires after SESSION_LIFETIME.
 
     Parameters
     ----------
@@ -24,11 +25,14 @@ def login(username: str, password: str) -> str | None:
         New session token, or None if the credentials are wrong.
     """
     with get_connection() as connection:
-        user = connection.execute("SELECT * FROM users WHERE username = ?", (username,)).fetchone()
+        user = connection.execute("SELECT * FROM users WHERE username = %s", (username,)).fetchone()
         if user is None or not verify_password(password, user["password_hash"]):
             return None
         session_token = secrets.token_urlsafe(32)
-        connection.execute("INSERT INTO sessions (token, user_id) VALUES (?, ?)", (session_token, user["id"]))
+        connection.execute(
+            "INSERT INTO sessions (token, user_id, expires_at) VALUES (%s, %s, now() + %s)",
+            (session_token, user["id"], SESSION_LIFETIME),
+        )
         return session_token
 
 
@@ -42,11 +46,11 @@ def logout(session_token: str | None) -> None:
     """
     if session_token:
         with get_connection() as connection:
-            connection.execute("DELETE FROM sessions WHERE token = ?", (session_token,))
+            connection.execute("DELETE FROM sessions WHERE token = %s", (session_token,))
 
 
-def get_user_from_session(session_token: str | None) -> sqlite3.Row | None:
-    """Look up the user that owns a session token.
+def get_user_from_session(session_token: str | None) -> dict | None:
+    """Look up the user that owns a session token that has not expired.
 
     Parameters
     ----------
@@ -55,18 +59,20 @@ def get_user_from_session(session_token: str | None) -> sqlite3.Row | None:
 
     Returns
     -------
-    sqlite3.Row or None
-        The user, or None if the token is missing or unknown.
+    dict or None
+        The user (id, username, role), or None if the token is missing, unknown or expired.
     """
     if not session_token:
         return None
     with get_connection() as connection:
         return connection.execute(
-            "SELECT u.* FROM users u JOIN sessions s ON s.user_id = u.id WHERE s.token = ?", (session_token,)
+            "SELECT u.id, u.username, u.role FROM users u JOIN sessions s ON s.user_id = u.id "
+            "WHERE s.token = %s AND s.expires_at > now()",
+            (session_token,),
         ).fetchone()
 
 
-def get_current_user(request: Request) -> sqlite3.Row:
+def get_current_user(request: Request) -> dict:
     """FastAPI dependency: the logged-in user from the session cookie.
 
     Parameters
@@ -76,7 +82,7 @@ def get_current_user(request: Request) -> sqlite3.Row:
 
     Returns
     -------
-    sqlite3.Row
+    dict
         The logged-in user.
 
     Raises
@@ -90,17 +96,17 @@ def get_current_user(request: Request) -> sqlite3.Row:
     return user
 
 
-def require_admin(user: sqlite3.Row = Depends(get_current_user)) -> sqlite3.Row:
+def require_admin(user: dict = Depends(get_current_user)) -> dict:
     """FastAPI dependency: the logged-in user, who must be an admin.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
     -------
-    sqlite3.Row
+    dict
         The admin user.
 
     Raises

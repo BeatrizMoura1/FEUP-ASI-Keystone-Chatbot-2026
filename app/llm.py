@@ -20,9 +20,9 @@ class LLMError(Exception):
 
 
 def generate(system_prompt: str, user_prompt: str) -> str:
-    """Send one prompt to the configured LLM provider and return its raw text reply.
+    """Send one prompt to Gemini and return its raw text reply.
 
-    This is the single entry point for LLM calls: swap providers via LLM_PROVIDER in .env.
+    This is the single entry point for LLM calls.
     HTTP 429 responses are retried a few times with a short wait before giving up.
 
     Parameters
@@ -44,10 +44,9 @@ def generate(system_prompt: str, user_prompt: str) -> str:
     LLMError
         For configuration errors or any other provider failure.
     """
-    provider_call = _call_gemini if settings.llm_provider == "gemini" else _call_ollama
     for attempt_number in range(settings.llm_max_retries + 1):
         try:
-            return provider_call(system_prompt, user_prompt)
+            return _call_gemini(system_prompt, user_prompt)
         except RateLimitError:
             if attempt_number == settings.llm_max_retries:
                 logger.error("LLM rate limit persisted after %d retries.", settings.llm_max_retries)
@@ -101,48 +100,3 @@ def _call_gemini(system_prompt: str, user_prompt: str) -> str:
     except (KeyError, IndexError) as error:
         raise LLMError(f"Unexpected Gemini response: {response.text[:300]}") from error
     return "".join(part.get("text", "") for part in response_parts)
-
-
-def _call_ollama(system_prompt: str, user_prompt: str) -> str:
-    """Call a local Ollama server's /api/chat endpoint in JSON mode.
-
-    Parameters
-    ----------
-    system_prompt : str
-        Sent as the system message.
-    user_prompt : str
-        Sent as the user message.
-
-    Returns
-    -------
-    str
-        The assistant message content.
-
-    Raises
-    ------
-    RateLimitError
-        On HTTP 429.
-    LLMError
-        On missing config, connection failure or other HTTP errors.
-    """
-    if not settings.ollama_model:
-        raise LLMError("OLLAMA_MODEL must be set in .env when LLM_PROVIDER=ollama")
-    request_body = {
-        "model": settings.ollama_model,
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt},
-        ],
-        "format": "json",
-        "stream": False,
-        "options": {"temperature": 0},
-    }
-    try:
-        response = httpx.post(f"{settings.ollama_url}/api/chat", json=request_body, timeout=REQUEST_TIMEOUT_SECONDS)
-    except httpx.ConnectError as error:
-        raise LLMError(f"Cannot reach Ollama at {settings.ollama_url}. Is `ollama serve` running?") from error
-    if response.status_code == 429:
-        raise RateLimitError("Ollama rate limit reached")
-    if response.status_code != 200:
-        raise LLMError(f"Ollama returned HTTP {response.status_code}: {response.text[:300]}")
-    return response.json()["message"]["content"]

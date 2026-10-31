@@ -1,6 +1,4 @@
 import logging
-import sqlite3
-from contextlib import asynccontextmanager
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
@@ -9,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import SESSION_COOKIE_NAME, get_current_user, get_user_from_session, login, logout, require_admin
 from app.chat import answer_question
-from app.config import PROJECTS, settings
+from app.config import settings
 from app.conversations import (
     delete_conversation,
     get_conversation,
@@ -19,7 +17,6 @@ from app.conversations import (
     save_exchange,
     user_owns_conversation,
 )
-from app.db import init_db
 from app.documents import (
     add_document,
     delete_document,
@@ -27,7 +24,7 @@ from app.documents import (
     extract_text,
     get_allowed_document,
     get_allowed_documents,
-    seed_documents,
+    list_project_codes,
 )
 from app.llm import LLMError, RateLimitError
 
@@ -35,21 +32,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger("knowledge_finder")
 
 
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    """Initialise the database and seed the documents once when the server starts.
-
-    Parameters
-    ----------
-    _app : FastAPI
-        The application instance (unused).
-    """
-    init_db()
-    seed_documents()
-    yield
-
-
-app = FastAPI(title="Keystone", lifespan=lifespan)
+app = FastAPI(title="Keystone")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 
@@ -155,12 +138,12 @@ def logout_endpoint(request: Request, response: Response) -> dict:
 
 
 @app.get("/api/me")
-def me(user: sqlite3.Row = Depends(get_current_user)) -> dict:
+def me(user: dict = Depends(get_current_user)) -> dict:
     """Return the logged-in user's name and role.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -172,7 +155,7 @@ def me(user: sqlite3.Row = Depends(get_current_user)) -> dict:
 
 
 @app.post("/api/ask")
-def ask(ask_request: AskRequest, user: sqlite3.Row = Depends(get_current_user)) -> JSONResponse:
+def ask(ask_request: AskRequest, user: dict = Depends(get_current_user)) -> JSONResponse:
     """Answer a question from the documents the user may access and save it in a conversation.
 
     The last CHAT_HISTORY_MESSAGES messages of the conversation are sent along so follow-up questions work.
@@ -181,7 +164,7 @@ def ask(ask_request: AskRequest, user: sqlite3.Row = Depends(get_current_user)) 
     ----------
     ask_request : AskRequest
         The question, and the conversation to add it to (None starts a new conversation).
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -222,12 +205,12 @@ def ask(ask_request: AskRequest, user: sqlite3.Row = Depends(get_current_user)) 
 
 
 @app.get("/api/conversations")
-def conversations_list(user: sqlite3.Row = Depends(get_current_user)) -> list[dict]:
+def conversations_list(user: dict = Depends(get_current_user)) -> list[dict]:
     """List the logged-in user's conversations, most recent first.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -239,14 +222,14 @@ def conversations_list(user: sqlite3.Row = Depends(get_current_user)) -> list[di
 
 
 @app.get("/api/conversations/{conversation_id}")
-def conversation_detail(conversation_id: int, user: sqlite3.Row = Depends(get_current_user)) -> dict:
+def conversation_detail(conversation_id: int, user: dict = Depends(get_current_user)) -> dict:
     """Return one of the user's conversations with its messages.
 
     Parameters
     ----------
     conversation_id : int
         Conversation to open.
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -266,14 +249,14 @@ def conversation_detail(conversation_id: int, user: sqlite3.Row = Depends(get_cu
 
 
 @app.delete("/api/conversations/{conversation_id}")
-def conversation_delete(conversation_id: int, user: sqlite3.Row = Depends(get_current_user)) -> dict:
+def conversation_delete(conversation_id: int, user: dict = Depends(get_current_user)) -> dict:
     """Delete one of the user's conversations.
 
     Parameters
     ----------
     conversation_id : int
         Conversation to delete.
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -292,14 +275,14 @@ def conversation_delete(conversation_id: int, user: sqlite3.Row = Depends(get_cu
 
 
 @app.get("/api/documents/{document_id}")
-def read_document(document_id: int, user: sqlite3.Row = Depends(get_current_user)) -> dict:
+def read_document(document_id: int, user: dict = Depends(get_current_user)) -> dict:
     """Return a document's full text for the side panel, if the user may see it.
 
     Parameters
     ----------
     document_id : int
         Id of the document.
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -319,14 +302,14 @@ def read_document(document_id: int, user: sqlite3.Row = Depends(get_current_user
 
 
 @app.post("/api/ratings")
-def rate_answer(rating_request: RatingRequest, user: sqlite3.Row = Depends(get_current_user)) -> dict:
+def rate_answer(rating_request: RatingRequest, user: dict = Depends(get_current_user)) -> dict:
     """Store (or change) a thumbs up / thumbs down rating for one of the user's answers.
 
     Parameters
     ----------
     rating_request : RatingRequest
         The rated answer's message id and whether the rating is positive.
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
 
     Returns
@@ -367,12 +350,12 @@ def admin_page(request: Request) -> FileResponse | RedirectResponse:
 
 
 @app.get("/api/admin/documents")
-def list_documents(admin_user: sqlite3.Row = Depends(require_admin)) -> dict:
+def list_documents(admin_user: dict = Depends(require_admin)) -> dict:
     """List all documents (without their text) and the available projects.
 
     Parameters
     ----------
-    admin_user : sqlite3.Row
+    admin_user : dict
         The logged-in admin.
 
     Returns
@@ -385,14 +368,14 @@ def list_documents(admin_user: sqlite3.Row = Depends(require_admin)) -> dict:
          "num_chars": len(document["content"])}
         for document in get_allowed_documents(admin_user)
     ]
-    return {"documents": document_summaries, "projects": PROJECTS}
+    return {"documents": document_summaries, "projects": list_project_codes()}
 
 
 @app.post("/api/admin/documents")
 async def upload_document(
     file: UploadFile = File(...),
     project: str = Form(...),
-    admin_user: sqlite3.Row = Depends(require_admin),
+    admin_user: dict = Depends(require_admin),
 ) -> dict:
     """Upload a txt/md/pdf document and assign it to a project.
 
@@ -402,7 +385,7 @@ async def upload_document(
         The uploaded file.
     project : str
         Project to assign the document to.
-    admin_user : sqlite3.Row
+    admin_user : dict
         The logged-in admin.
 
     Returns
@@ -418,7 +401,7 @@ async def upload_document(
     try:
         document_text = extract_text(file.filename or "", await file.read())
         document_name = document_name_from_filename(file.filename)
-        document_id = add_document(document_name, project, document_text)
+        document_id = add_document(document_name, project, document_text, admin_user["id"])
     except ValueError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
     logger.info("Admin '%s' uploaded '%s' to project %s.", admin_user["username"], document_name, project)
@@ -426,14 +409,14 @@ async def upload_document(
 
 
 @app.delete("/api/admin/documents/{document_id}")
-def remove_document(document_id: int, admin_user: sqlite3.Row = Depends(require_admin)) -> dict:
-    """Delete a document.
+def remove_document(document_id: int, admin_user: dict = Depends(require_admin)) -> dict:
+    """Delete a document (it is marked as deleted and never used again).
 
     Parameters
     ----------
     document_id : int
         Id of the document to delete.
-    admin_user : sqlite3.Row
+    admin_user : dict
         The logged-in admin.
 
     Returns

@@ -176,7 +176,7 @@ function showError(question, errorText) {
 /* ---------- Chat history ---------- */
 
 function historyGroupLabel(updatedAt) {
-  const updatedDate = new Date(`${updatedAt.replace(" ", "T")}Z`);
+  const updatedDate = new Date(updatedAt);
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const millisecondsPerDay = 86400000;

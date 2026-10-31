@@ -7,10 +7,10 @@ replies "No answer found."
 
 ## How it works
 
-1. At startup, every `.txt` / `.md` / `.pdf` in `.docs/` is loaded into SQLite (only if the database has no
-   documents yet). The project is read from the `Project / visibility tag:` line (GENERAL, A or B).
+1. `python -m db.reset` creates the PostgreSQL tables (`db/schema.sql`) and loads every `.txt` / `.md` / `.pdf`
+   in `.docs/`. The project is read from the `Project / visibility tag:` line (GENERAL, A or B).
 2. When a user asks a question, the documents they may see are selected **in the SQL query**
-   (`documents JOIN user_projects`). Admins see all documents.
+   (`documents JOIN user_projects`, deleted documents excluded). Admins see all documents.
 3. The full text of those documents and the question go into one prompt (no embeddings or vector database).
    The model must reply with JSON: `{"answer": "...", "sources": ["doc name", ...]}`.
 4. The reply is parsed safely. Malformed JSON falls back to the raw text, and any cited source the user can't
@@ -18,7 +18,7 @@ replies "No answer found."
 
 ## Chat history
 
-Every question and answer is saved per user in SQLite (`conversations` and `messages` tables), so your chats
+Every question and answer is saved per user in PostgreSQL (`conversations` and `messages` tables), so your chats
 are still there the next time you log in.
 
 - A new chat is created when you send its first question, and its title is that question.
@@ -44,49 +44,46 @@ are still there the next time you log in.
 
 ```
 app/
-  config.py      settings read from .env (pydantic-settings)
-  db.py          SQLite schema, demo users, password hashing
-  documents.py   text extraction (txt/md/pdf), seeding, permission-filtered queries
-  llm.py         generate(): the single LLM entry point (Gemini or Ollama), 429 retry
+  config.py      settings read from the environment or .env (pydantic-settings)
+  db.py          PostgreSQL connection (psycopg 3), password hashing
+  documents.py   text extraction (txt/md/pdf), permission-filtered queries, soft delete
+  llm.py         generate(): the single LLM entry point (Gemini), 429 retry
   chat.py        prompt building and JSON parsing
-  auth.py        login, session cookie, admin check
+  auth.py        login, session cookie with expiry, admin check
   conversations.py  saved chats: list, open, save question/answer, delete, rate
   main.py        FastAPI routes
+db/
+  schema.sql     tables, keys, constraints
+  reset.py       recreates the tables and seeds projects, test accounts and sample documents
 static/          plain HTML/CSS/JS (chat, login, admin)
-tests/           pytest tests (no real LLM calls)
+tests/           pytest tests on a local PostgreSQL test database (no real LLM calls)
 .docs/           seed documents (the document name is the file name with underscores as spaces)
 ```
 
 ## Setup
 
-Requires Python 3.12+.
+Requires Python 3.12+ and PostgreSQL.
 
 ```bash
+brew install postgresql@17 && brew services start postgresql@17
+createdb keystone && createdb keystone_test
+
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env        # then put your Gemini key in .env
+cp .env.example .env        # then set your Gemini key and the three test account passwords
+python -m db.reset          # creates the tables, test accounts and sample documents
 ```
 
 `.env`:
 
 ```
-LLM_PROVIDER=gemini
 GEMINI_API_KEY=<your key from https://aistudio.google.com/apikey>
 GEMINI_MODEL=gemini-3.5-flash-lite
-```
-
-Optional local model (no API key, no internet):
-
-```bash
-# install Ollama from https://ollama.com, then:
-ollama pull llama3.2
-```
-
-```
-LLM_PROVIDER=ollama
-OLLAMA_MODEL=llama3.2
-OLLAMA_URL=http://localhost:11434
+DATABASE_URL=postgresql://localhost/keystone
+EMPLOYEE_PASSWORD=...
+NEWHIRE_PASSWORD=...
+ADMIN_PASSWORD=...
 ```
 
 ## Run
@@ -97,12 +94,14 @@ uvicorn app.main:app --reload
 
 Open http://localhost:8000.
 
-| User       | Password      | Can see                       |
-|------------|---------------|-------------------------------|
-| `employee` | `employee123` | GENERAL + Project A documents |
-| `admin`    | `admin123`    | everything + `/admin` page    |
+| User       | Password             | Can see                       |
+|------------|----------------------|-------------------------------|
+| `employee` | `EMPLOYEE_PASSWORD`  | GENERAL + Project A documents |
+| `newhire`  | `NEWHIRE_PASSWORD`   | GENERAL documents only        |
+| `admin`    | `ADMIN_PASSWORD`     | everything + `/admin` page    |
 
-To reset the database (and reload documents from `.docs/`), stop the server and delete `knowledge_finder.db`.
+To reset the database (delete all chats, ratings and uploads, and reload the documents from `.docs/`), run
+`python -m db.reset`.
 
 ## Sample documents
 
@@ -112,8 +111,8 @@ To reset the database (and reload documents from `.docs/`), stop the server and 
 | Quality Procedure Deliverable Review and Document Control | GENERAL | everyone |
 | Site Health and Safety Rules (`.txt`) | GENERAL | everyone |
 | IT Security and AI Tools Policy | GENERAL | everyone |
-| Project A Linha Verde Metro Extension Execution Plan | A | employee, admin |
-| Project A Design Review Minutes 2026-09-24 | A | employee, admin |
+| Project A Linha Verde Metro Extension Execution Plan | A | employee, admin (not newhire) |
+| Project A Design Review Minutes 2026-09-24 | A | employee, admin (not newhire) |
 | Project B Offshore Wind Tender Bid Strategy CONFIDENTIAL | B | admin only |
 
 ## Demo questions
@@ -142,7 +141,10 @@ pytest
 Project B text or citation appears in the response. It uses a fake LLM that echoes back the whole prompt it
 received, so any leaked document would show up. No API key is needed.
 
+The tests use the local database in `TEST_DATABASE_URL` (default `postgresql://localhost/keystone_test`) and
+reset it before every test, with the test passwords `employee123`, `newhire123` and `admin123`.
+
 ## Swapping the LLM provider
 
-All LLM calls go through `generate(system_prompt, user_prompt)` in `app/llm.py`. To add a provider, write
-a `_call_<provider>()` function and select it there.
+All LLM calls go through `generate(system_prompt, user_prompt)` in `app/llm.py`. To change provider, replace
+`_call_gemini()` there.

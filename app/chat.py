@@ -1,7 +1,6 @@
 import json
 import logging
 import re
-import sqlite3
 
 from app.config import NO_ANSWER_TEXT
 from app.documents import get_allowed_documents
@@ -23,12 +22,12 @@ Rules:
 MAX_HISTORY_MESSAGE_CHARS = 1500
 
 
-def build_user_prompt(documents: list[sqlite3.Row], question: str, conversation_history: list[dict]) -> str:
+def build_user_prompt(documents: list[dict], question: str, conversation_history: list[dict]) -> str:
     """Put the full text of every allowed document, the recent conversation and the question into one prompt.
 
     Parameters
     ----------
-    documents : list of sqlite3.Row
+    documents : list of dict
         Documents the user is allowed to see.
     question : str
         The user's question.
@@ -91,12 +90,12 @@ def parse_llm_reply(raw_reply: str, allowed_document_names: set[str]) -> dict:
     return {"answer": answer_text, "sources": list(dict.fromkeys(cited_sources))}
 
 
-def answer_question(user: sqlite3.Row, question: str, conversation_history: list[dict] | None = None) -> dict:
+def answer_question(user: dict, question: str, conversation_history: list[dict] | None = None) -> dict:
     """Answer a question using only the documents this user may access.
 
     Parameters
     ----------
-    user : sqlite3.Row
+    user : dict
         The logged-in user.
     question : str
         The user's question.

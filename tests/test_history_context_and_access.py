@@ -95,9 +95,16 @@ def set_employee_project_a_access(has_access: bool) -> None:
     employee_user_id = get_employee_user_id()
     with get_connection() as connection:
         if has_access:
-            connection.execute("INSERT INTO user_projects (user_id, project) VALUES (?, 'A')", (employee_user_id,))
+            connection.execute(
+                "INSERT INTO user_projects (user_id, project_id) SELECT %s, id FROM projects WHERE code = 'A'",
+                (employee_user_id,),
+            )
         else:
-            connection.execute("DELETE FROM user_projects WHERE user_id = ? AND project = 'A'", (employee_user_id,))
+            connection.execute(
+                "DELETE FROM user_projects WHERE user_id = %s "
+                "AND project_id = (SELECT id FROM projects WHERE code = 'A')",
+                (employee_user_id,),
+            )
 
 
 def ask_project_a_question(client, fake_llm: FakeLLM) -> dict:
@@ -193,7 +200,7 @@ def test_hidden_answer_is_not_sent_to_the_model_in_a_follow_up(client, fake_llm)
 def test_answer_is_hidden_after_its_source_document_is_deleted(client, fake_llm):
     answer = ask_project_a_question(client, fake_llm)
     with get_connection() as connection:
-        connection.execute("DELETE FROM documents WHERE name = ?", (PROJECT_A_DOCUMENT_NAME,))
+        connection.execute("UPDATE documents SET deleted_at = now() WHERE name = %s", (PROJECT_A_DOCUMENT_NAME,))
 
     hidden_message = client.get(f"/api/conversations/{answer['conversation_id']}").json()["messages"][1]
 

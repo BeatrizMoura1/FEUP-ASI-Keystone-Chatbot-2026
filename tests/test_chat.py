@@ -47,7 +47,6 @@ def test_rate_limit_retries_then_returns_429(client, monkeypatch):
         raise llm.RateLimitError("429")
 
     monkeypatch.setattr(llm, "_call_gemini", always_rate_limited)
-    monkeypatch.setattr(llm.settings, "llm_provider", "gemini")
     monkeypatch.setattr(llm.settings, "llm_retry_wait_seconds", 0)
     monkeypatch.setattr(chat, "generate", llm.generate)
     login_as(client, "employee", "employee123")
