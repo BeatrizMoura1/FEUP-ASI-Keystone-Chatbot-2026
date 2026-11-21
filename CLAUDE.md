@@ -30,8 +30,9 @@ standard.
 - Every query that reads documents filters `deleted_at IS NULL`.
 - Every chat, message and rating query filters on the logged-in user's id, except the admin ratings view.
 - Secrets (Gemini key, database URL) come only from environment variables, never from code, tests or git.
-  `.env` stays in `.gitignore`. The demo account passwords are not secrets: the app reads them from environment
-  variables, and they are shared with testers on purpose.
+  `.env` stays in `.gitignore`. The demo account passwords are not secrets and are shared with testers on purpose:
+  `employee`, `newhire` and `admin` read theirs from environment variables, and `employee1` to `employee10` use
+  their username as password.
 - SQL uses parameters (`%s`), never string formatting with user input.
 
 ## LLM calls

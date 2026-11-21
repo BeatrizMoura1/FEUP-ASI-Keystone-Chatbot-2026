@@ -59,7 +59,7 @@ def insert_message_with_rating(connection: psycopg.Connection) -> tuple[int, int
 
 
 def test_reset_seeds_projects_accounts_and_documents(test_database):
-    """The reset creates the three projects, the three test accounts with their projects, and 7 documents."""
+    """The reset creates the three projects, the test and demo accounts with their projects, and 7 documents."""
     account_projects = dict(
         test_database.execute(
             "SELECT u.username, coalesce(string_agg(p.code, ',' ORDER BY p.code), '') FROM users u "
@@ -67,7 +67,8 @@ def test_reset_seeds_projects_accounts_and_documents(test_database):
             "GROUP BY u.username"
         ).fetchall()
     )
-    assert account_projects == {"employee": "A,GENERAL", "newhire": "GENERAL", "admin": ""}
+    demo_account_projects = {f"employee{demo_number}": "A,GENERAL" for demo_number in range(1, 11)}
+    assert account_projects == {"employee": "A,GENERAL", "newhire": "GENERAL", "admin": "", **demo_account_projects}
     assert test_database.execute("SELECT count(*) FROM projects").fetchone()[0] == 3
     assert test_database.execute("SELECT count(*) FROM documents").fetchone()[0] == 7
 

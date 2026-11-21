@@ -58,6 +58,7 @@ Each criterion comes from Assignment 1 and is checked by an automated test, by t
 | `employee` | employee | GENERAL, A | Main demo account; cannot see Project B |
 | `newhire` | employee | GENERAL | Cannot see Project A or B, so M3 can be seen from both sides |
 | `admin` | admin | all | Document management and ratings |
+| `employee1` to `employee10` | employee | GENERAL, A | One per tester during the live demo, so testers do not share chats |
 
 Passwords come from the environment variables `EMPLOYEE_PASSWORD`, `NEWHIRE_PASSWORD` and `ADMIN_PASSWORD`.
 These are demo accounts with fake data: their passwords are shared on purpose with testers (Moodle PDF, manual

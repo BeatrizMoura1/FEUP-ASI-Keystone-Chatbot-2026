@@ -100,6 +100,7 @@ Open http://localhost:8000.
 | `employee` | `EMPLOYEE_PASSWORD`  | GENERAL + Project A documents |
 | `newhire`  | `NEWHIRE_PASSWORD`   | GENERAL documents only        |
 | `admin`    | `ADMIN_PASSWORD`     | everything + `/admin` page    |
+| `employee1` … `employee10` | the username (`employee1` … `employee10`) | GENERAL + Project A documents (one account per tester) |
 
 To reset the database (delete all chats, ratings and uploads, and reload the documents from `sample_documents/`), run
 `python -m db.reset`.

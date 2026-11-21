@@ -30,6 +30,35 @@ TEST_ACCOUNTS = [
     ("admin", "admin", [], "admin_password"),
 ]
 
+DEMO_EMPLOYEE_COUNT = 10
+DEMO_EMPLOYEE_PROJECTS = ["GENERAL", "A"]
+
+
+def build_seed_accounts(passwords: dict[str, str]) -> list[tuple[str, str, list[str], str]]:
+    """List every account the reset creates: the three test accounts and the demo employees.
+
+    The demo employees (employee1 to employee10) let several testers use the live site at once without sharing
+    chats. Each one sees the same projects as `employee`, and its password is its username: these are demo
+    accounts with fake data, shared openly with testers.
+
+    Parameters
+    ----------
+    passwords : dict of str to str
+        Password per test account username, from read_test_account_passwords().
+
+    Returns
+    -------
+    list of tuple of (str, str, list of str, str)
+        (username, role, project codes, password) per account.
+    """
+    seed_accounts = [
+        (username, role, project_codes, passwords[username]) for username, role, project_codes, _ in TEST_ACCOUNTS
+    ]
+    for demo_number in range(1, DEMO_EMPLOYEE_COUNT + 1):
+        demo_username = f"employee{demo_number}"
+        seed_accounts.append((demo_username, "employee", DEMO_EMPLOYEE_PROJECTS, demo_username))
+    return seed_accounts
+
 
 def read_test_account_passwords() -> dict[str, str]:
     """Read the test account passwords from the settings.
@@ -86,12 +115,12 @@ def load_sample_documents(docs_dir: str) -> list[tuple[str, str, str]]:
 
 
 def reset_database(database_url: str) -> dict[str, int]:
-    """Drop every Keystone table, recreate the schema and insert the projects, test accounts and sample documents.
+    """Drop every Keystone table, recreate the schema and insert the projects, accounts and sample documents.
 
     All existing data (chats, ratings, uploaded documents, sessions) is deleted. Everything runs in one
     transaction, so a failure leaves the database as it was.
 
-    Each entry of TEST_ACCOUNTS is (username, role, project codes, name of the password setting). Admins see
+    The accounts come from build_seed_accounts(): the three test accounts and the demo employees. Admins see
     every project, so they get no user_projects rows.
 
     Parameters
@@ -113,7 +142,7 @@ def reset_database(database_url: str) -> dict[str, int]:
     psycopg.Error
         If a database statement fails.
     """
-    passwords = read_test_account_passwords()
+    seed_accounts = build_seed_accounts(read_test_account_passwords())
     sample_documents = load_sample_documents(settings.docs_dir)
     with psycopg.connect(database_url) as connection:
         connection.execute(f"DROP TABLE IF EXISTS {', '.join(TABLES)} CASCADE")
@@ -124,10 +153,10 @@ def reset_database(database_url: str) -> dict[str, int]:
                 "INSERT INTO projects (code, name) VALUES (%s, %s) RETURNING id", (project_code, project_name)
             ).fetchone()[0]
         user_ids = {}
-        for username, role, project_codes, _ in TEST_ACCOUNTS:
+        for username, role, project_codes, password in seed_accounts:
             user_ids[username] = connection.execute(
                 "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s) RETURNING id",
-                (username, hash_password(passwords[username]), role),
+                (username, hash_password(password), role),
             ).fetchone()[0]
             for project_code in project_codes:
                 connection.execute(
@@ -139,7 +168,7 @@ def reset_database(database_url: str) -> dict[str, int]:
                 "INSERT INTO documents (name, content, project_id, uploaded_by) VALUES (%s, %s, %s, %s)",
                 (document_name, document_text, project_ids[project_code], user_ids["admin"]),
             )
-    inserted_counts = {"projects": len(PROJECTS), "users": len(TEST_ACCOUNTS), "documents": len(sample_documents)}
+    inserted_counts = {"projects": len(PROJECTS), "users": len(seed_accounts), "documents": len(sample_documents)}
     logger.info("Database reset: %s.", inserted_counts)
     return inserted_counts
 
