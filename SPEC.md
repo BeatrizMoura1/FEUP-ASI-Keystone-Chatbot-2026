@@ -12,20 +12,25 @@ Anything not listed here is not built.
 
 ## 1. Scope
 
-| ID | User story | In the MVP |
-|----|------------|------------|
-| M1 | As an employee, I ask a question in plain language and get an answer with its source documents. | Yes |
-| M2 | As an employee, I am told when the documents do not contain the answer, so I am not misled. | Yes |
-| M3 | As an employee, I only receive answers from content I am allowed to see. | Yes |
-| M4 | As a user, I log in with a role (employee or admin) so access is controlled. | Yes |
-| M5 | As an admin, I upload and delete documents and choose which team or project can see them. | Yes |
-| S1 | Rate answers with thumbs up or down. | Yes |
-| S2 | Chat history: create, reopen, delete chats. | Yes |
-| S3 | Summarise an uploaded meeting transcript. | No |
-| S4 | Admin sees questions answered with "No answer found". | No |
+The "Assignment 1" column is the text of slides 12 and 13, unchanged. The "Refined story" column rewrites each one
+in the full form (who, what, and why), because in Assignment 1 several stories had no benefit and S1 to S4 were
+written as features. The IDs, the scope and the acceptance criteria in section 2 stay the same.
 
-Not in the MVP: meeting summaries (S3), the "No answer found" list for the admin (S4), live connectors (Slack, Teams, Outlook, drive sync), audit dashboard,
-user management screens, other languages, API access for other applications (waits for the next assignment).
+| ID | Assignment 1 | Refined story | In the MVP |
+|----|--------------|---------------|------------|
+| M1 | As an employee, I ask a question in plain language and get an answer with its source documents. | As an employee, I want to ask a question in plain language and get an answer with its source documents, so that I can trust it and check it myself. | Yes |
+| M2 | As an employee, I am told when the documents do not contain the answer, so I am not misled. | As an employee, I want to be told when the documents do not contain the answer, so that I am not misled by an invented one. | Yes |
+| M3 | As an employee, I only receive answers from content I am allowed to see. | As an employee, I only want answers from content I am allowed to see, so that confidential project information stays protected. | Yes |
+| M4 | As a user, I log in with a role (employee or admin) so access is controlled. | As a user, I want to log in with my role (employee or admin), so that only admins can manage documents. | Yes |
+| M5 | As an admin, I upload and delete documents and choose which team or project can see them. | As an admin, I want to upload and delete documents and choose which project can see them, so that answers stay current and access stays correct. | Yes |
+| S1 | Rate answers with thumbs up or down. | As an employee, I want to rate an answer thumbs up or down, so that the admin knows which answers or documents need fixing. | Yes |
+| S2 | Chat history: create, reopen, delete chats. | As an employee, I want my chats saved so I can reopen or delete them, so that I can come back to earlier answers. | Yes |
+| S3 | Summarise an uploaded meeting transcript. | As an employee, I want to upload a meeting transcript and get its decisions and actions, so that I don't have to reread the whole meeting. | No |
+| S4 | Admin sees questions answered with "No answer found". | As an admin, I want to see the questions answered with "No answer found", so that I know which documents are missing. | No |
+
+Not in the MVP: meeting summaries (S3), the "No answer found" list for the admin (S4), live connectors (Slack,
+Teams, Outlook, drive sync), audit dashboard, user management screens, other languages, API access for other
+applications (waits for the next assignment).
 
 ---
 
