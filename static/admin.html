@@ -33,6 +33,17 @@
       </table>
     </section>
 
+    <h2 class="section-heading">Unanswered questions</h2>
+    <p class="subtitle">Questions answered with "No answer found.", newest first. They point to documents that are missing.</p>
+
+    <section class="panel-card">
+      <p class="rating-summary" id="unanswered-summary"></p>
+      <table class="doc-table rating-table">
+        <thead><tr><th>Question</th><th>User</th><th>Date</th></tr></thead>
+        <tbody id="unanswered-rows"></tbody>
+      </table>
+    </section>
+
     <h2 class="section-heading">Answer ratings</h2>
     <p class="subtitle">Thumbs up and down from employees, newest first. "Not helpful" answers point to missing or outdated documents.</p>
 
@@ -154,6 +165,33 @@
       }
     }
 
+    const unansweredRows = document.getElementById("unanswered-rows");
+    const unansweredSummary = document.getElementById("unanswered-summary");
+
+    async function loadUnansweredQuestions() {
+      const response = await fetch("/api/admin/unanswered");
+      if (!response.ok) { unansweredSummary.textContent = "Could not load the unanswered questions."; return; }
+      const unansweredQuestions = await response.json();
+      unansweredSummary.textContent = unansweredQuestions.length
+        ? `${unansweredQuestions.length} ${unansweredQuestions.length === 1 ? "question" : "questions"} without an answer`
+        : "";
+      unansweredRows.innerHTML = "";
+      if (!unansweredQuestions.length) {
+        unansweredRows.innerHTML = '<tr class="empty-row"><td colspan="3">No unanswered questions yet. They appear here when an employee gets "No answer found."</td></tr>';
+      }
+      for (const unansweredQuestion of unansweredQuestions) {
+        const row = unansweredRows.insertRow();
+        addTextCell(row, unansweredQuestion.question, "doc-name").dataset.label = "Question";
+        const userCell = row.insertCell();
+        userCell.dataset.label = "User";
+        userCell.textContent = unansweredQuestion.username;
+        const dateCell = row.insertCell();
+        dateCell.className = "num";
+        dateCell.dataset.label = "Date";
+        dateCell.textContent = RATING_DATE_FORMAT.format(new Date(unansweredQuestion.created_at));
+      }
+    }
+
     document.getElementById("upload-form").onsubmit = async (submitEvent) => {
       submitEvent.preventDefault();
       const uploadButton = document.getElementById("upload-button");
@@ -177,6 +215,7 @@
     };
 
     loadDocuments();
+    loadUnansweredQuestions();
     loadRatings();
   </script>
 </body>

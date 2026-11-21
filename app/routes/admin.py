@@ -3,6 +3,7 @@ import logging
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.auth import require_admin
+from app.conversations import list_unanswered_questions
 from app.documents import (
     add_document,
     delete_document,
@@ -92,6 +93,23 @@ def ratings_list(admin_user: dict = Depends(require_admin)) -> list[dict]:
         [{"id", "is_positive", "question", "answer", "username", "created_at", "is_chat_deleted"}].
     """
     return list_ratings()
+
+
+@router.get("/api/admin/unanswered")
+def unanswered_list(admin_user: dict = Depends(require_admin)) -> list[dict]:
+    """List the questions answered with "No answer found.", newest first, for the admin (S4).
+
+    Parameters
+    ----------
+    admin_user : dict
+        The logged-in admin.
+
+    Returns
+    -------
+    list of dict
+        [{"question", "username", "created_at"}].
+    """
+    return list_unanswered_questions()
 
 
 @router.delete("/api/admin/documents/{document_id}")

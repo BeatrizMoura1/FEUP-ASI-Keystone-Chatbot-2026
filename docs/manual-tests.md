@@ -34,9 +34,13 @@ Test accounts: `employee` / `employee123` (General + Project A), `newhire` / `ne
 | MT-20 | S1 | As `admin`, look at Answer ratings | The thumbs up from MT-09: "1 rating · 1 helpful · 0 not helpful" | Pass | Pass | | ☐ |
 | MT-21 | Errors | Go offline (DevTools → Network → Offline), ask a question; go online, click Retry | "Could not reach Keystone…" with Retry; Retry gives the cited answer | Pass | Pass | | ☐ |
 | MT-22 | Errors | Go offline on the login page and log in | "Could not reach Keystone…"; the Log in button works again | Pass | Pass | | ☐ |
+| MT-23 | S4 | As `employee3`, ask "Does Contoso offer a company car or a car allowance?"; as `admin`, open Admin | "No answer found."; the question appears under Unanswered questions with `employee3` and the date ("1 question without an answer") | Pass | Pass | | ☐ |
 
 **Result:** 22 of 22 checks passed on desktop and on phone. The run showed one wording bug, fixed afterwards: the
 ratings summary said "1 ratings" (MT-20); it now says "1 rating".
+
+MT-23 was added with S4 on 21 November 2026 and run in Chromium against a local copy of the app (desktop and
+phone, light and dark mode, no sideways scrolling); run it again on the live site after the deploy.
 
 **Answer time (M1, "median under 10 s"):** 14 timed questions, from the click to the answer on screen: median
 **2.3 s**, slowest 3.7 s.

@@ -26,9 +26,9 @@ written as features. The IDs, the scope and the acceptance criteria in section 2
 | S1 | Rate answers with thumbs up or down. | As an employee, I want to rate an answer thumbs up or down, so that the admin knows which answers or documents need fixing. | Yes |
 | S2 | Chat history: create, reopen, delete chats. | As an employee, I want my chats saved so I can reopen or delete them, so that I can come back to earlier answers. | Yes |
 | S3 | Summarise an uploaded meeting transcript. | As an employee, I want to upload a meeting transcript and get its decisions and actions, so that I don't have to reread the whole meeting. | No |
-| S4 | Admin sees questions answered with "No answer found". | As an admin, I want to see the questions answered with "No answer found", so that I know which documents are missing. | No |
+| S4 | Admin sees questions answered with "No answer found". | As an admin, I want to see the questions answered with "No answer found", so that I know which documents are missing. | Yes |
 
-Not in the MVP: meeting summaries (S3), the "No answer found" list for the admin (S4), live connectors (Slack,
+Not in the MVP: meeting summaries (S3), live connectors (Slack,
 Teams, Outlook, drive sync), audit dashboard, user management screens, other languages, API access for other
 applications (waits for the next assignment).
 
@@ -48,6 +48,7 @@ Each criterion comes from Assignment 1 and is checked by an automated test, by t
 | M5 | A new document is searchable right after upload; deleted ones never appear in answers. | Uploaded document reaches the prompt; deleted document never does; a deleted name can be uploaded again | Upload, ask, delete, ask again |
 | S1 | Rating is saved and visible to the admin. | Rating saved; admin ratings list shows it; employee cannot read it | Rate as employee, see it as admin |
 | S2 | Chats persist after logout; deleted chats disappear. | Chat listed after logout and login; deleted chat returns 404 | Reopen and delete a chat |
+| S4 | List shows which documents are missing. | Every "No answer found." question is listed with its user, newest first; answered questions are not; employee cannot read it | Ask an unanswerable question as employee, see it as admin |
 
 ---
 
@@ -73,6 +74,7 @@ test checklist, live demo) and are not secrets. They are never shown on the publ
 | Login | everyone | Username and password; wrong password shows an error; employees go to Chat, admins can open Admin |
 | Chat | employee, admin | Sidebar with saved chats (new, reopen, delete); question box; cited answer with source chips; drawer to read a source; thumbs up/down; logout |
 | Admin: Documents | admin | List of documents with project; upload a txt/md/pdf file to a project; delete a document |
+| Admin: Unanswered questions | admin | List of questions answered with "No answer found.": question, user, date; newest first. Questions from deleted chats are not listed |
 | Admin: Ratings | admin | List of ratings: question, answer, thumbs up/down, user, date; newest first |
 
 Flows:
@@ -80,7 +82,7 @@ Flows:
 1. Employee: log in → ask → read the cited answer or "No answer found." → open a source → rate → new chat or
    reopen an old one → log out.
 2. Admin: log in → upload a document to a project → the next question from a permitted employee can cite it →
-   delete it → it is never cited again → read the ratings.
+   delete it → it is never cited again → read the unanswered questions and the ratings.
 
 ### Errors the user sees
 
@@ -168,7 +170,7 @@ app/
     pages.py        login, chat and admin pages
     account.py      login, logout, current user
     chat.py         ask, chats, source documents, ratings
-    admin.py        document upload/delete, ratings list
+    admin.py        document upload/delete, ratings list, unanswered questions
 db/
   schema.sql        tables, keys, constraints
   reset.py          drops the data and re-seeds test accounts, projects and sample documents

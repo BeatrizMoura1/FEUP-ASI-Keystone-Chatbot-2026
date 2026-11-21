@@ -293,3 +293,29 @@ def delete_conversation(user: dict, conversation_id: int) -> bool:
         return connection.execute(
             "DELETE FROM conversations WHERE id = %s AND user_id = %s", (conversation_id, user["id"])
         ).rowcount > 0
+
+
+def list_unanswered_questions() -> list[dict]:
+    """List every question answered with NO_ANSWER_TEXT, newest first, for the admin (S4).
+
+    Each row is the user's question that came right before a "No answer found." reply, with who asked it and
+    when. The list points the admin to documents that are missing. Questions from chats the user has deleted are
+    not listed, because deleting a chat deletes its messages.
+
+    Returns
+    -------
+    list of dict
+        [{"question", "username", "created_at"}].
+    """
+    with get_connection() as connection:
+        return connection.execute(
+            "SELECT question_message.content AS question, u.username, answer_message.created_at "
+            "FROM messages answer_message "
+            "JOIN conversations c ON c.id = answer_message.conversation_id "
+            "JOIN users u ON u.id = c.user_id "
+            "JOIN LATERAL (SELECT q.content FROM messages q WHERE q.conversation_id = answer_message.conversation_id "
+            "  AND q.role = 'user' AND q.id < answer_message.id ORDER BY q.id DESC LIMIT 1) question_message ON true "
+            "WHERE answer_message.role = 'assistant' AND answer_message.content = %s "
+            "ORDER BY answer_message.created_at DESC, answer_message.id DESC",
+            (NO_ANSWER_TEXT,),
+        ).fetchall()
