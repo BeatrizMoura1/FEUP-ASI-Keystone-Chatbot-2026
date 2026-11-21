@@ -22,9 +22,9 @@ Anything not listed here is not built.
 | S1 | Rate answers with thumbs up or down. | Yes |
 | S2 | Chat history: create, reopen, delete chats. | Yes |
 | S3 | Summarise an uploaded meeting transcript. | No |
-| S4 | Admin sees questions answered with "No answer found". | Only if time allows |
+| S4 | Admin sees questions answered with "No answer found". | No |
 
-Not in the MVP: meeting summaries (S3), live connectors (Slack, Teams, Outlook, drive sync), audit dashboard,
+Not in the MVP: meeting summaries (S3), the "No answer found" list for the admin (S4), live connectors (Slack, Teams, Outlook, drive sync), audit dashboard,
 user management screens, other languages, API access for other applications (waits for the next assignment).
 
 ---
@@ -55,7 +55,8 @@ Each criterion comes from Assignment 1 and is checked by an automated test, by t
 | `admin` | admin | all | Document management and ratings |
 
 Passwords come from the environment variables `EMPLOYEE_PASSWORD`, `NEWHIRE_PASSWORD` and `ADMIN_PASSWORD`.
-They are given to testers in the Moodle PDF and in class, never on the public login page or in git.
+These are demo accounts with fake data: their passwords are shared on purpose with testers (Moodle PDF, manual
+test checklist, live demo) and are not secrets. They are never shown on the public login page.
 
 ---
 
@@ -135,7 +136,7 @@ Browser ──HTTPS──► FastAPI on Render ──► Neon PostgreSQL
                         └──► Gemini API
 ```
 
-- **Stack:** Python 3.12, FastAPI, psycopg 3, PostgreSQL, plain HTML/CSS/JS, Gemini free tier. No frontend
+- **Stack:** Python 3.13, FastAPI, psycopg 3, PostgreSQL, plain HTML/CSS/JS, Gemini free tier. No frontend
   framework, no ORM, no vector database.
 - **Answering:** the documents the user may see are selected in SQL; their full text, the question and the
   recent chat history go into one prompt; the model replies with JSON `{"answer", "sources"}`; sources the user
@@ -201,5 +202,5 @@ One flow at a time; each step ends with `pytest` passing and a check in the brow
 7. Error handling, including the "busy" message.
 8. UX review on hierarchy, contrast, spacing, consistency, accessibility and phone width; comparison with the
    Assignment 1 mockups.
-9. Manual test checklist with answer times; classmates test the live site.
+9. Manual test checklist with answer times; classmates test the live site during the live demo.
 10. Submission PDF, screenshots, demo script, rehearsal.

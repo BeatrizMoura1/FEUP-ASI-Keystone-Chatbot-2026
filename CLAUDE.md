@@ -16,7 +16,7 @@ standard.
 
 ## Stack and structure
 
-- Python 3.12, FastAPI, psycopg 3, PostgreSQL, plain HTML/CSS/JS, Gemini. No ORM, no frontend framework, no
+- Python 3.13, FastAPI, psycopg 3, PostgreSQL, plain HTML/CSS/JS, Gemini. No ORM, no frontend framework, no
   vector database.
 - Follow the folder structure in `SPEC.md` section 6. Routes live in `app/routes/`, one module per area (pages,
   account, chat, admin); `app/main.py` only creates the app. Logic stays in the module that owns it.
@@ -29,8 +29,9 @@ standard.
 - The Project B leak test (`tests/test_permissions.py`) must always pass.
 - Every query that reads documents filters `deleted_at IS NULL`.
 - Every chat, message and rating query filters on the logged-in user's id, except the admin ratings view.
-- Secrets (Gemini key, database URL, test account passwords) come only from environment variables, never from
-  code, tests or git. `.env` stays in `.gitignore`.
+- Secrets (Gemini key, database URL) come only from environment variables, never from code, tests or git.
+  `.env` stays in `.gitignore`. The demo account passwords are not secrets: the app reads them from environment
+  variables, and they are shared with testers on purpose.
 - SQL uses parameters (`%s`), never string formatting with user input.
 
 ## LLM calls
