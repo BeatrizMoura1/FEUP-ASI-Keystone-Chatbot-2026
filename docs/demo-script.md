@@ -19,7 +19,8 @@ total is 5:00.
       `localhost`, stop, because the reset would go to the local database. The reset logs `users: 13`.
 
 - [ ] **Wake the site 5 minutes before:** open https://feup-asi-keystone-chatbot-2026.onrender.com (the free plan
-      sleeps after 15 minutes and takes about a minute to wake up).
+      sleeps after 15 minutes and takes about a minute to wake up), log in as `employee1` and ask one question so
+      the first connection to Gemini is made before the demo. Delete that chat afterwards.
 - [ ] **Window 1 (normal):** the login page, not logged in.
 - [ ] **Window 2 (private):** logged in as `admin` / `admin123`, on the Admin page.
 - [ ] **File for the upload** on the Desktop, `Company_Car_Policy.txt`:
@@ -48,7 +49,7 @@ total is 5:00.
 | 3:15 | 2 | Delete "Company Car Policy" | |
 | 3:25 | 1 | Ask in the same chat: *Does Contoso offer a mobility allowance?* → "No answer found." | "Deleted documents are never used again." (M5, M2) |
 | 3:40 | 1 | Open DevTools → device toolbar (phone) and show the chat and the menu | "It works on a phone." |
-| 4:00 | — | Show the repository on GitHub: `SPEC.md`, `CLAUDE.md`, the commit history, `docs/` | "Built with an LLM agent: the spec and the rules came first, then one flow per commit. 79 automated tests, including a permission-leak test, and a 23-step browser checklist run on desktop and phone." |
+| 4:00 | — | Show the repository on GitHub: `SPEC.md`, `CLAUDE.md`, the commit history, `docs/` | "Built with an LLM agent: the spec and the rules came first, then one flow per commit. 85 automated tests, including a permission-leak test, and a 23-step browser checklist run on desktop and phone." |
 | 4:40 | — | Back to the app; paste the `employee1` to `employee10` accounts in the chat | "Ten PostgreSQL tables with primary and foreign keys, hosted on Render and Neon. You can try it now with these accounts. Questions?" |
 
 ## If something goes wrong
@@ -56,6 +57,7 @@ total is 5:00.
 | Problem | What to do |
 |---------|------------|
 | The site is waking up (loading page) | Wait; say "free hosting sleeps when idle, this is the cold start". Next time open it earlier. |
+| "The AI service failed, please try again." | Click **Retry**. Keystone already retried a brief Gemini failure twice; if it still fails, Gemini itself is down for a moment. Say "the error is handled: nothing is lost and the question stays on screen". |
 | "Keystone is busy, please try again in a minute." | Click **Retry** after a few seconds; it is the free Gemini limit, and the message itself is part of the error handling. |
 | An answer is worded differently from the script | Expected: the AI phrases answers freely. Point at the source chip. |
 | Classmates all ask at once and answers slow down | Expected: the free Gemini plan allows about 10–15 questions a minute, and Keystone waits and retries instead of failing. Ask them to take turns. |

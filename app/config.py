@@ -23,6 +23,16 @@ class Settings(BaseSettings):
     gemini_model: str = Field(default="", alias="GEMINI_MODEL")
     llm_max_retries: int = Field(default=2, alias="LLM_MAX_RETRIES")
     llm_retry_wait_seconds: float = Field(default=3.0, alias="LLM_RETRY_WAIT_SECONDS")
+    llm_transient_retries: int = Field(
+        default=2,
+        alias="LLM_TRANSIENT_RETRIES",
+        description="Retries after a brief Gemini failure (HTTP 5xx or a refused or dropped connection).",
+    )
+    llm_transient_retry_wait_seconds: float = Field(
+        default=2.0,
+        alias="LLM_TRANSIENT_RETRY_WAIT_SECONDS",
+        description="Seconds to wait before retrying a brief Gemini failure.",
+    )
     chat_history_messages: int = Field(
         default=6,
         alias="CHAT_HISTORY_MESSAGES",

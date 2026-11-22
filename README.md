@@ -47,7 +47,7 @@ app/
   db.py          PostgreSQL connection (psycopg 3)
   auth.py        password hashing, login, session cookie with expiry, admin check
   documents.py   text extraction (txt/md/pdf), permission-filtered queries, soft delete
-  llm.py         generate(): the single LLM entry point (Gemini), 429 retry
+  llm.py         generate(): the single LLM entry point (Gemini), 429 and brief-failure retries
   chat.py        prompt building and JSON parsing
   conversations.py  saved chats: list, open, save question/answer, delete
   ratings.py     thumbs up/down: save a rating, list ratings for the admin

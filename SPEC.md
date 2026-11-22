@@ -91,7 +91,7 @@ Flows:
 | Wrong username or password | "Wrong username or password" |
 | Empty or too long question | The send button stays disabled; the box stops at 2000 characters |
 | Gemini rate limit after the retries | "Keystone is busy, please try again in a minute."; the question stays on screen with a Retry button |
-| Gemini fails, times out or cannot be reached | "The AI service failed, please try again."; the question stays on screen with a Retry button |
+| Gemini fails, times out or cannot be reached | Brief failures (HTTP 5xx, refused or dropped connection) are retried first; if they persist, or on a timeout or any other error: "The AI service failed, please try again."; the question stays on screen with a Retry button |
 | The browser cannot reach Keystone | "Could not reach Keystone. Check your internet connection and retry." |
 | The database cannot be reached | "Keystone cannot reach its database right now, please try again in a minute." (login shows "Keystone is unavailable right now") |
 | Any other server error | "Something went wrong on our side, please try again."; the details go only to the server log |
@@ -161,7 +161,7 @@ app/
   db.py             PostgreSQL connection (psycopg 3)
   auth.py           password hashing, login, session cookie, admin check
   documents.py      text extraction, permission-filtered queries, soft delete
-  llm.py            generate(): the single LLM entry point (Gemini), 429 retry
+  llm.py            generate(): the single LLM entry point (Gemini), 429 and brief-failure retries
   chat.py           prompt building and JSON parsing
   conversations.py  chats and messages
   ratings.py        ratings: save, list for the admin
@@ -191,6 +191,7 @@ README.md           setup, run, test, deploy
 | `GEMINI_API_KEY` | Gemini API key |
 | `GEMINI_MODEL` | Gemini model name |
 | `LLM_MAX_RETRIES`, `LLM_RETRY_WAIT_SECONDS` | Retries after a Gemini rate limit |
+| `LLM_TRANSIENT_RETRIES`, `LLM_TRANSIENT_RETRY_WAIT_SECONDS` | Retries after a brief Gemini failure (HTTP 5xx, refused or dropped connection); default 2 retries, 2 s apart |
 | `CHAT_HISTORY_MESSAGES` | Earlier messages sent with each question (0 turns follow-ups off) |
 | `DOCS_DIR` | Folder of sample documents used by the seed and reset |
 | `EMPLOYEE_PASSWORD`, `NEWHIRE_PASSWORD`, `ADMIN_PASSWORD` | Test account passwords |
